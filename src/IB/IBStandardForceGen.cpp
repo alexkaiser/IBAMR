@@ -334,7 +334,7 @@ IBStandardForceGen::computeLagrangianForce(Pointer<LData> F_data,
     IBTK_CHKERRQ(ierr);
 
     // Compute the forces.
-    computeLagrangianSpringForce(F_ghost_data, X_ghost_data, hierarchy, level_number, data_time, l_data_manager);
+    computeLagrangianSpringForce(F_ghost_data, X_ghost_data, U_data, hierarchy, level_number, data_time, l_data_manager);
     computeLagrangianBeamForce(F_ghost_data, X_ghost_data, hierarchy, level_number, data_time, l_data_manager);
     computeLagrangianTargetPointForce(
         F_ghost_data, X_ghost_data, U_data, hierarchy, level_number, data_time, l_data_manager);
@@ -866,6 +866,7 @@ IBStandardForceGen::initializeSpringLevelData(std::set<int>& nonlocal_petsc_idx_
 void
 IBStandardForceGen::computeLagrangianSpringForce(Pointer<LData> F_data,
                                                  Pointer<LData> X_data,
+                                                 Pointer<LData> U_data,
                                                  const Pointer<PatchHierarchy<NDIM> > /*hierarchy*/,
                                                  const int level_number,
                                                  const double /*data_time*/,
@@ -881,10 +882,17 @@ IBStandardForceGen::computeLagrangianSpringForce(Pointer<LData> F_data,
     const double** const parameters = &d_spring_data[level_number].parameters[0];
     double* const F_node = F_data->getLocalFormVecArray()->data();
     const double* const X_node = X_data->getGhostedLocalFormVecArray()->data();
+    
+    // unclear which of these is correct 
+    // const double* const U_node = U_data->getLocalFormVecArray()->data();
+    const double* const U_node = U_data->getGhostedLocalFormVecArray()->data();
 
     static const int BLOCKSIZE = 16; // this parameter needs to be tuned
     int k, kblock, kunroll, mastr_idx, slave_idx;
     double F[NDIM], D[NDIM], R, T_over_R;
+    
+    double eta, X_diff_dot_U, T_dashpot; 
+    
     kblock = 0;
     for (; kblock < (num_springs - 1) / BLOCKSIZE;
          ++kblock) // ensure that the last block is NOT handled by this first loop
@@ -907,6 +915,8 @@ IBStandardForceGen::computeLagrangianSpringForce(Pointer<LData> F_data,
             PREFETCH_READ_NTA_NDIM_BLOCK(F_node + petsc_slave_node_idxs[k + 1]);
             PREFETCH_READ_NTA_NDIM_BLOCK(X_node + petsc_mastr_node_idxs[k + 1]);
             PREFETCH_READ_NTA_NDIM_BLOCK(X_node + petsc_slave_node_idxs[k + 1]);
+            PREFETCH_READ_NTA_NDIM_BLOCK(U_node + petsc_mastr_node_idxs[k + 1]);
+            PREFETCH_READ_NTA_NDIM_BLOCK(U_node + petsc_slave_node_idxs[k + 1]);
             PREFETCH_READ_NTA(parameters[k + 1]);
             D[0] = X_node[slave_idx + 0] - X_node[mastr_idx + 0];
             D[1] = X_node[slave_idx + 1] - X_node[mastr_idx + 1];
@@ -920,7 +930,34 @@ IBStandardForceGen::computeLagrangianSpringForce(Pointer<LData> F_data,
             R = sqrt(D[0] * D[0] + D[1] * D[1] + D[2] * D[2]);
 #endif
             if (UNLIKELY(R < std::numeric_limits<double>::epsilon())) continue;
+            
             T_over_R = (force_fcns[k])(R, parameters[k], lag_mastr_node_idxs[k], lag_slave_node_idxs[k]) / R;
+            
+            // std::cout << "k = " << k << ", " << "force_fcns[k] = " << force_fcns[k] << ", parameters[k][0:2] = " << parameters[k][0] << ", " << parameters[k][1] << ", " << parameters[k][2] << "\n";  
+            
+            // damping enabled 
+            if (parameters[k][2] > 0.0){
+            
+                eta = parameters[k][2]; 
+            
+                #if (NDIM == 2)
+            
+                    X_diff_dot_U =   (X_node[slave_idx + 0] - X_node[mastr_idx + 0]) * (U_node[slave_idx + 0] - U_node[mastr_idx + 0])
+                                   + (X_node[slave_idx + 1] - X_node[mastr_idx + 1]) * (U_node[slave_idx + 1] - U_node[mastr_idx + 1]); 
+                                   
+                #elif (NDIM == 3)
+                
+                    X_diff_dot_U =   (X_node[slave_idx + 0] - X_node[mastr_idx + 0]) * (U_node[slave_idx + 0] - U_node[mastr_idx + 0])
+                                   + (X_node[slave_idx + 1] - X_node[mastr_idx + 1]) * (U_node[slave_idx + 1] - U_node[mastr_idx + 1])
+                                   + (X_node[slave_idx + 2] - X_node[mastr_idx + 2]) * (U_node[slave_idx + 2] - U_node[mastr_idx + 2]); 
+            
+                #endif
+            
+                T_dashpot = eta * X_diff_dot_U / R; 
+
+                T_over_R += T_dashpot / R; 
+            }
+            
             F[0] = T_over_R * D[0];
             F[1] = T_over_R * D[1];
 #if (NDIM == 3)
@@ -958,6 +995,30 @@ IBStandardForceGen::computeLagrangianSpringForce(Pointer<LData> F_data,
 #endif
         if (UNLIKELY(R < std::numeric_limits<double>::epsilon())) continue;
         T_over_R = (force_fcns[k])(R, parameters[k], lag_mastr_node_idxs[k], lag_slave_node_idxs[k]) / R;
+        
+        // damping enabled 
+        if (parameters[k][2] > 0.0){
+            
+            eta = parameters[k][2]; 
+        
+            #if (NDIM == 2)
+        
+                X_diff_dot_U =   (X_node[slave_idx + 0] - X_node[mastr_idx + 0]) * (U_node[slave_idx + 0] - U_node[mastr_idx + 0])
+                               + (X_node[slave_idx + 1] - X_node[mastr_idx + 1]) * (U_node[slave_idx + 1] - U_node[mastr_idx + 1]); 
+                                   
+            #elif (NDIM == 3)
+                
+                X_diff_dot_U =   (X_node[slave_idx + 0] - X_node[mastr_idx + 0]) * (U_node[slave_idx + 0] - U_node[mastr_idx + 0])
+                               + (X_node[slave_idx + 1] - X_node[mastr_idx + 1]) * (U_node[slave_idx + 1] - U_node[mastr_idx + 1])
+                               + (X_node[slave_idx + 2] - X_node[mastr_idx + 2]) * (U_node[slave_idx + 2] - U_node[mastr_idx + 2]); 
+            
+            #endif
+            
+            T_dashpot = eta * X_diff_dot_U / R; 
+
+            T_over_R += T_dashpot / R; 
+        }
+        
         F[0] = T_over_R * D[0];
         F[1] = T_over_R * D[1];
 #if (NDIM == 3)
@@ -977,6 +1038,7 @@ IBStandardForceGen::computeLagrangianSpringForce(Pointer<LData> F_data,
 
     F_data->restoreArrays();
     X_data->restoreArrays();
+    U_data->restoreArrays();
     return;
 } // computeLagrangianSpringForce
 

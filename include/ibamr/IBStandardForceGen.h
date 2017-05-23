@@ -243,6 +243,7 @@ private:
                                    IBTK::LDataManager* l_data_manager);
     void computeLagrangianSpringForce(SAMRAI::tbox::Pointer<IBTK::LData> F_data,
                                       SAMRAI::tbox::Pointer<IBTK::LData> X_data,
+                                      SAMRAI::tbox::Pointer<IBTK::LData> U_data,
                                       SAMRAI::tbox::Pointer<SAMRAI::hier::PatchHierarchy<NDIM> > hierarchy,
                                       int level_number,
                                       double data_time,
