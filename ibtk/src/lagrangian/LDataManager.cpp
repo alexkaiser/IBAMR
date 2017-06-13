@@ -2643,6 +2643,71 @@ LDataManager::putToDatabase(Pointer<Database> db)
     return;
 } // putToDatabase
 
+void LDataManager::initialize_movement_info(int n_moving, 
+                                            int *indices,
+                                            double *velocity)
+{
+
+    d_movement_info = new movement_info; 
+
+    d_movement_info->n_moving = n_moving; 
+    d_movement_info->indices = new int[n_moving]; 
+
+    if ((d_movement_info) && (d_movement_info->indices))
+        d_movement_info->allocated = true; 
+    else
+        TBOX_ERROR("Movement info allocation failed.\n"); 
+        
+    for (int i=0; i<n_moving; i++)
+        d_movement_info->indices[i] = indices[i]; 
+    
+    d_movement_info->u_target[0] = velocity[0]; 
+    d_movement_info->u_target[1] = velocity[1]; 
+    d_movement_info->u_target[2] = velocity[2]; 
+    return;    
+}
+
+void LDataManager::print_movement_info()
+{
+    std::cout << "movement info:\n"; 
+    std::cout << "allocated = " << d_movement_info->allocated << "\n"; 
+    std::cout << "n_moving = " << d_movement_info->n_moving << "\n"; 
+    std::cout << "indices = "; 
+    
+    for (int i=0; i<d_movement_info->n_moving; i++)
+        std::cout << d_movement_info->indices[i] << ", "; 
+    std::cout << "\n"; 
+    
+    std::cout << "u_target = " 
+              << d_movement_info->u_target[0] << ", " 
+              << d_movement_info->u_target[1] << ", " 
+              << d_movement_info->u_target[2] << "\n\n"; 
+    
+    return;    
+}
+    
+void LDataManager::set_movement_velocity(double *velocity)
+{
+    d_movement_info->u_target[0] = velocity[0]; 
+    d_movement_info->u_target[1] = velocity[1]; 
+    d_movement_info->u_target[2] = velocity[2];
+    return; 
+}
+
+movement_info *LDataManager::get_movement_info()
+{
+    // may return null pointer if not allocated or initialized n
+    // can check in code accordingly 
+    return d_movement_info; 
+}
+    
+void LDataManager::free_movement_info()
+{
+    delete[] d_movement_info->indices; 
+    delete d_movement_info; 
+    return; 
+}
+
 /////////////////////////////// PROTECTED ////////////////////////////////////
 
 LDataManager::LDataManager(const std::string& object_name,

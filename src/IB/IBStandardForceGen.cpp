@@ -296,6 +296,11 @@ IBStandardForceGen::initializeLevelData(const Pointer<PatchHierarchy<NDIM> > hie
                    d_target_point_data[level_number].petsc_global_node_idxs.begin(),
                    std::bind2nd(std::multiplies<int>(), NDIM));
 
+    std::transform(d_target_point_data[level_number].target_file_node_idxs.begin(),
+                   d_target_point_data[level_number].target_file_node_idxs.end(),
+                   d_target_point_data[level_number].target_file_node_idxs.begin(),
+                   std::bind2nd(std::multiplies<int>(), NDIM));
+
     // Indicate that the level data has been initialized.
     d_is_initialized[level_number] = true;
     return;
@@ -1273,6 +1278,7 @@ IBStandardForceGen::initializeTargetPointLevelData(std::set<int>& /*nonlocal_pet
 {
     std::vector<int>& petsc_node_idxs = d_target_point_data[level_number].petsc_node_idxs;
     std::vector<int>& petsc_global_node_idxs = d_target_point_data[level_number].petsc_global_node_idxs;
+    std::vector<int>& target_file_node_idxs = d_target_point_data[level_number].target_file_node_idxs;
     std::vector<const double*>& kappa = d_target_point_data[level_number].kappa;
     std::vector<const double*>& eta = d_target_point_data[level_number].eta;
     std::vector<const Point*>& X0 = d_target_point_data[level_number].X0;
@@ -1295,6 +1301,7 @@ IBStandardForceGen::initializeTargetPointLevelData(std::set<int>& /*nonlocal_pet
     // forces.
     petsc_node_idxs.resize(num_target_points);
     petsc_global_node_idxs.resize(num_target_points);
+    target_file_node_idxs.resize(num_target_points);
     kappa.resize(num_target_points);
     eta.resize(num_target_points);
     X0.resize(num_target_points);
@@ -1308,9 +1315,24 @@ IBStandardForceGen::initializeTargetPointLevelData(std::set<int>& /*nonlocal_pet
         if (!force_spec) continue;
         petsc_global_node_idxs[current_target_point] = petsc_node_idxs[current_target_point] =
             node_idx->getGlobalPETScIndex();
+        target_file_node_idxs[current_target_point] = node_idx->getLagrangianIndex();    
         kappa[current_target_point] = &force_spec->getStiffness();
         eta[current_target_point] = &force_spec->getDamping();
         X0[current_target_point] = &force_spec->getTargetPointPosition();
+        
+        if (X0[current_target_point]->data()[2] < -1.0){
+            std::cout << "Target that should be papillary found in initialize.\n"; 
+            std::cout << "Rank " << SAMRAI_MPI::getRank() 
+                      << ", petsc_global_node_idxs = " << petsc_global_node_idxs[current_target_point]
+                      << ", target_file_idx = " << target_file_node_idxs[current_target_point] << "\n"
+                      << "coords   = " << X0[current_target_point]->data()[0] << ", " 
+                                       << X0[current_target_point]->data()[1] << ", " 
+                                       << X0[current_target_point]->data()[2] << ", " 
+                      << ", kappa = " << *kappa[current_target_point] 
+                      << ", eta = "   << *eta[current_target_point] 
+                      <<"\n"; 
+        }
+        
         ++current_target_point;
     }
 
@@ -1324,12 +1346,13 @@ IBStandardForceGen::computeLagrangianTargetPointForce(Pointer<LData> F_data,
                                                       const Pointer<PatchHierarchy<NDIM> > /*hierarchy*/,
                                                       const int level_number,
                                                       const double /*data_time*/,
-                                                      LDataManager* const /*l_data_manager*/)
+                                                      LDataManager* const l_data_manager)
 {
     double max_displacement = 0.0;
 
     const int num_target_points = static_cast<int>(d_target_point_data[level_number].petsc_node_idxs.size());
     const int* const petsc_node_idxs = &d_target_point_data[level_number].petsc_node_idxs[0];
+    const int* const target_file_node_idxs = &d_target_point_data[level_number].target_file_node_idxs[0];
     const double** const kappa = &d_target_point_data[level_number].kappa[0];
     const double** const eta = &d_target_point_data[level_number].eta[0];
     const Point** const X0 = &d_target_point_data[level_number].X0[0];
@@ -1338,17 +1361,28 @@ IBStandardForceGen::computeLagrangianTargetPointForce(Pointer<LData> F_data,
     const double* const U_node = U_data->getLocalFormVecArray()->data();
 
     static const int BLOCKSIZE = 16; // This parameter needs to be tuned.
-    int k, kblock, kunroll, idx;
+    int k, kblock, kunroll, idx, target_file_idx;
     double K, E, dX;
     double L_squared;          // Square of current length
     double X_diff_dot_U;       // (X_target - X_node) dot_product U
     double T_damping_over_L;   // Scalar tension from from damping term divided by L
     const double* X_target;
+    
+    // papillary movement info 
+    movement_info *move_info = l_data_manager->get_movement_info(); 
+    double U_target[3]; 
+    const bool debug_info = true; 
+    
+    #if (NDIM == 2)
+        TBOX_ERROR("New target only implemented for 3D\n");
+    #endif 
+    
     kblock = 0;
     for (; kblock < (num_target_points - 1) / BLOCKSIZE;
          ++kblock) // ensure that the last block is NOT handled by this first loop
     {
         PREFETCH_READ_NTA_BLOCK(petsc_node_idxs + BLOCKSIZE * (kblock + 1), BLOCKSIZE);
+        PREFETCH_READ_NTA_BLOCK(target_file_node_idxs + BLOCKSIZE * (kblock + 1), BLOCKSIZE);
         PREFETCH_READ_NTA_BLOCK(kappa + BLOCKSIZE * (kblock + 1), BLOCKSIZE);
         PREFETCH_READ_NTA_BLOCK(eta + BLOCKSIZE * (kblock + 1), BLOCKSIZE);
         PREFETCH_READ_NTA_BLOCK(X0 + BLOCKSIZE * (kblock + 1), BLOCKSIZE);
@@ -1356,6 +1390,7 @@ IBStandardForceGen::computeLagrangianTargetPointForce(Pointer<LData> F_data,
         {
             k = kblock * BLOCKSIZE + kunroll;
             idx = petsc_node_idxs[k];
+            target_file_idx = target_file_node_idxs[k]; 
             PREFETCH_READ_NTA_NDIM_BLOCK(F_node + petsc_node_idxs[k + 1]);
             PREFETCH_READ_NTA_NDIM_BLOCK(X_node + petsc_node_idxs[k + 1]);
             PREFETCH_READ_NTA(kappa[k + 1]);
@@ -1365,13 +1400,47 @@ IBStandardForceGen::computeLagrangianTargetPointForce(Pointer<LData> F_data,
             E = *eta[k];
             X_target = X0[k]->data();
             
+            if (X_target[2] < -1.0){
+                std::cout << "Target that should be papillary found in force calc.\n"; 
+                std::cout << "Rank " << SAMRAI_MPI::getRank() 
+                          << ", petsc_global_node_idxs = " << idx
+                          << ", target_file_idx = " << target_file_idx << "\n"
+                          << "coords   = " << X_target[0] << ", " 
+                                           << X_target[1] << ", " 
+                                           << X_target[2] << ", "
+                          << ", kappa = " << K
+                          << ", eta = "   << E
+                          <<"\n"; 
+            }
+            
+            U_target[0] = 0.0; 
+            U_target[1] = 0.0; 
+            U_target[2] = 0.0; 
+            for (int i=0; i<move_info->n_moving; i++)
+            {
+                if (move_info->indices[i] == target_file_idx)
+                { 
+                    U_target[0] = move_info->u_target[0]; 
+                    U_target[1] = move_info->u_target[1]; 
+                    U_target[2] = move_info->u_target[2];
+                                         
+                    if (debug_info){
+                        std::cout << "Moving on rank " << SAMRAI_MPI::getRank() << ", target_file_idx = " << target_file_idx 
+                                  << ", coords   = " << X_target[0] << ", " << X_target[1] << ", " << X_target[2]
+                                  << ", U_target = " << U_target[0] << ", " << U_target[1] << ", " << U_target[2] << "\n"; 
+                    }
+                    
+                    break; 
+                }
+            }
+            
             #if (NDIM == 2)
             
                 L_squared =      (X_target[0] - X_node[idx + 0]) * (X_target[0] - X_node[idx + 0])
                                + (X_target[1] - X_node[idx + 1]) * (X_target[1] - X_node[idx + 1]);
             
-                X_diff_dot_U =   (X_target[0] - X_node[idx + 0]) * U_node[idx + 0]
-                               + (X_target[1] - X_node[idx + 1]) * U_node[idx + 1];
+                X_diff_dot_U =   (X_target[0] - X_node[idx + 0]) * (U_target[0] - U_node[idx + 0])
+                               + (X_target[1] - X_node[idx + 1]) * (U_target[1] - U_node[idx + 1]);
             
             #elif (NDIM == 3)
             
@@ -1379,16 +1448,16 @@ IBStandardForceGen::computeLagrangianTargetPointForce(Pointer<LData> F_data,
                                + (X_target[1] - X_node[idx + 1]) * (X_target[1] - X_node[idx + 1])
                                + (X_target[2] - X_node[idx + 2]) * (X_target[2] - X_node[idx + 2]);
             
-                X_diff_dot_U =   (X_target[0] - X_node[idx + 0]) * U_node[idx + 0]
-                               + (X_target[1] - X_node[idx + 1]) * U_node[idx + 1]
-                               + (X_target[2] - X_node[idx + 2]) * U_node[idx + 2];
+                X_diff_dot_U =   (X_target[0] - X_node[idx + 0]) * (U_target[0] - U_node[idx + 0])
+                               + (X_target[1] - X_node[idx + 1]) * (U_target[1] - U_node[idx + 1])
+                               + (X_target[2] - X_node[idx + 2]) * (U_target[2] - U_node[idx + 2]);
             
             #endif
             
             // Note that if L is zero, then the force is zero since |X_target - X_node| = 0
             //    and everything is projected in that direction
             // Set to zero if L is zero, since L (as a function of X_node)
-            T_damping_over_L = ((L_squared > 0.0) ? (-E * X_diff_dot_U / L_squared) : 0.0);
+            T_damping_over_L = ((L_squared > 0.0) ? (E * X_diff_dot_U / L_squared) : 0.0);
             
             F_node[idx + 0] += (K + T_damping_over_L) * (X_target[0] - X_node[idx + 0]) ;
             F_node[idx + 1] += (K + T_damping_over_L) * (X_target[1] - X_node[idx + 1]) ;
@@ -1412,17 +1481,39 @@ IBStandardForceGen::computeLagrangianTargetPointForce(Pointer<LData> F_data,
     for (k = kblock * BLOCKSIZE; k < num_target_points; ++k)
     {
         idx = petsc_node_idxs[k];
+        target_file_idx = target_file_node_idxs[k]; 
         K = *kappa[k];
         E = *eta[k];
         X_target = X0[k]->data();
 
+        U_target[0] = 0.0; 
+        U_target[1] = 0.0; 
+        U_target[2] = 0.0; 
+        for (int i=0; i<move_info->n_moving; i++)
+        {
+            if (move_info->indices[i] == target_file_idx)
+            { 
+                U_target[0] = move_info->u_target[0]; 
+                U_target[1] = move_info->u_target[1]; 
+                U_target[2] = move_info->u_target[2];
+                                     
+                if (debug_info){
+                    std::cout << "Moving, idx = " << target_file_idx 
+                              << ", coords = " << X_target[0] << ", " << X_target[1] << ", " << X_target[2]
+                              << ", U_target = " << U_target[0] << ", " << U_target[1] << ", " << U_target[2] << "\n"; 
+                }
+                
+                break; 
+            }
+        }
+
         #if (NDIM == 2)
-            
+        
             L_squared =      (X_target[0] - X_node[idx + 0]) * (X_target[0] - X_node[idx + 0])
                            + (X_target[1] - X_node[idx + 1]) * (X_target[1] - X_node[idx + 1]);
         
-            X_diff_dot_U =   (X_target[0] - X_node[idx + 0]) * U_node[idx + 0]
-                           + (X_target[1] - X_node[idx + 1]) * U_node[idx + 1];
+            X_diff_dot_U =   (X_target[0] - X_node[idx + 0]) * (U_target[0] - U_node[idx + 0])
+                           + (X_target[1] - X_node[idx + 1]) * (U_target[1] - U_node[idx + 1]);
         
         #elif (NDIM == 3)
         
@@ -1430,16 +1521,16 @@ IBStandardForceGen::computeLagrangianTargetPointForce(Pointer<LData> F_data,
                            + (X_target[1] - X_node[idx + 1]) * (X_target[1] - X_node[idx + 1])
                            + (X_target[2] - X_node[idx + 2]) * (X_target[2] - X_node[idx + 2]);
         
-            X_diff_dot_U =   (X_target[0] - X_node[idx + 0]) * U_node[idx + 0]
-                           + (X_target[1] - X_node[idx + 1]) * U_node[idx + 1]
-                           + (X_target[2] - X_node[idx + 2]) * U_node[idx + 2];
+            X_diff_dot_U =   (X_target[0] - X_node[idx + 0]) * (U_target[0] - U_node[idx + 0])
+                           + (X_target[1] - X_node[idx + 1]) * (U_target[1] - U_node[idx + 1])
+                           + (X_target[2] - X_node[idx + 2]) * (U_target[2] - U_node[idx + 2]);
         
         #endif
         
         // Note that if L is zero, then the force is zero since |X_target - X_node| = 0
         //    and everything is projected in that direction
         // Set to zero if L is zero, since L (as a function of X_node)
-        T_damping_over_L = ((L_squared > 0.0) ? (-E * X_diff_dot_U / L_squared) : 0.0);
+        T_damping_over_L = ((L_squared > 0.0) ? (E * X_diff_dot_U / L_squared) : 0.0);
         
         F_node[idx + 0] += (K + T_damping_over_L) * (X_target[0] - X_node[idx + 0]) ;
         F_node[idx + 1] += (K + T_damping_over_L) * (X_target[1] - X_node[idx + 1]) ;

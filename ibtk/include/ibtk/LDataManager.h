@@ -67,6 +67,14 @@
 #include "tbox/Pointer.h"
 #include "tbox/Serializable.h"
 
+typedef struct{
+    bool allocated; 
+    int n_moving; 
+    int *indices;
+    double u_target[3];  
+} movement_info; 
+
+
 namespace IBTK
 {
 class LData;
@@ -895,6 +903,20 @@ public:
      * When assertion checking is active, database pointer must be non-null.
      */
     void putToDatabase(SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> db);
+    
+    
+    void initialize_movement_info(int n_moving, 
+                                  int *indices,
+                                  double *velocity);  
+    
+    void print_movement_info(); 
+    
+    void set_movement_velocity(double *velocity);    
+    
+    movement_info *get_movement_info(); 
+    
+    void free_movement_info();    
+    
 
 protected:
     /*!
@@ -1214,6 +1236,9 @@ private:
     std::vector<std::vector<int> > d_nonlocal_petsc_indices;
 
     //\}
+        
+    movement_info *d_movement_info; 
+        
 };
 } // namespace IBTK
 
