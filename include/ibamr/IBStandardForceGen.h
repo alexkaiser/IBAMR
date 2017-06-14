@@ -222,7 +222,7 @@ private:
 
     struct TargetPointData
     {
-        std::vector<int> petsc_node_idxs, petsc_global_node_idxs; //, target_file_node_idxs;
+        std::vector<int> petsc_node_idxs, petsc_global_node_idxs;
         std::vector<const double *> kappa, eta;
         std::vector<const IBTK::Point*> X0;
     };
@@ -243,7 +243,6 @@ private:
                                    IBTK::LDataManager* l_data_manager);
     void computeLagrangianSpringForce(SAMRAI::tbox::Pointer<IBTK::LData> F_data,
                                       SAMRAI::tbox::Pointer<IBTK::LData> X_data,
-                                      SAMRAI::tbox::Pointer<IBTK::LData> U_data,
                                       SAMRAI::tbox::Pointer<SAMRAI::hier::PatchHierarchy<NDIM> > hierarchy,
                                       int level_number,
                                       double data_time,
