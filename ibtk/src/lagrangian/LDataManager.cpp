@@ -2661,9 +2661,9 @@ void LDataManager::initialize_movement_info(int n_moving,
     for (int i=0; i<n_moving; i++)
         d_movement_info->indices[i] = indices[i]; 
     
-    d_movement_info->u_target[0] = velocity[0]; 
-    d_movement_info->u_target[1] = velocity[1]; 
-    d_movement_info->u_target[2] = velocity[2]; 
+    d_movement_info->U_target[0] = velocity[0]; 
+    d_movement_info->U_target[1] = velocity[1]; 
+    d_movement_info->U_target[2] = velocity[2]; 
     return;    
 }
 
@@ -2679,18 +2679,18 @@ void LDataManager::print_movement_info()
     std::cout << "\n"; 
     
     std::cout << "u_target = " 
-              << d_movement_info->u_target[0] << ", " 
-              << d_movement_info->u_target[1] << ", " 
-              << d_movement_info->u_target[2] << "\n\n"; 
+              << d_movement_info->U_target[0] << ", " 
+              << d_movement_info->U_target[1] << ", " 
+              << d_movement_info->U_target[2] << "\n\n"; 
     
     return;    
 }
     
 void LDataManager::set_movement_velocity(double *velocity)
 {
-    d_movement_info->u_target[0] = velocity[0]; 
-    d_movement_info->u_target[1] = velocity[1]; 
-    d_movement_info->u_target[2] = velocity[2];
+    d_movement_info->U_target[0] = velocity[0]; 
+    d_movement_info->U_target[1] = velocity[1]; 
+    d_movement_info->U_target[2] = velocity[2];
     return; 
 }
 

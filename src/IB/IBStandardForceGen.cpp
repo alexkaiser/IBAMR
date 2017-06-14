@@ -1262,7 +1262,7 @@ IBStandardForceGen::computeLagrangianTargetPointForce(Pointer<LData> F_data,
                                                       const Pointer<PatchHierarchy<NDIM> > /*hierarchy*/,
                                                       const int level_number,
                                                       const double /*data_time*/,
-                                                      LDataManager* const /*l_data_manager*/)
+                                                      LDataManager* const l_data_manager)
 {
     double max_displacement = 0.0;
 
@@ -1281,7 +1281,12 @@ IBStandardForceGen::computeLagrangianTargetPointForce(Pointer<LData> F_data,
     double L_squared;          // Square of current length
     double X_diff_dot_U;       // (X_target - X_node) dot_product U
     double T_damping_over_L;   // Scalar tension from from damping term divided by L
+    
+    double U_target[3]; 
+    
     const double* X_target;
+    const movement_info *move_info = l_data_manager->get_movement_info(); 
+    
     kblock = 0;
     for (; kblock < (num_target_points - 1) / BLOCKSIZE;
          ++kblock) // ensure that the last block is NOT handled by this first loop
@@ -1303,13 +1308,29 @@ IBStandardForceGen::computeLagrangianTargetPointForce(Pointer<LData> F_data,
             E = *eta[k];
             X_target = X0[k]->data();
             
+            if (E > 100.0)
+            {
+                U_target[0] = move_info->U_target[0];
+                U_target[1] = move_info->U_target[1];
+                U_target[2] = move_info->U_target[2]; 
+                //std::cout << "moving on target with coords " 
+                //          << X_target[0] << ", " << X_target[1] << ", " << X_target[2] << ". eta = " << E << " U = "
+                //          << U_target[0] << ", " << U_target[1] << ", " << U_target[2] << "\n\n";        
+            }
+            else
+            {
+                U_target[0] = 0.0; 
+                U_target[1] = 0.0; 
+                U_target[2] = 0.0; 
+            } 
+            
             #if (NDIM == 2)
             
                 L_squared =      (X_target[0] - X_node[idx + 0]) * (X_target[0] - X_node[idx + 0])
                                + (X_target[1] - X_node[idx + 1]) * (X_target[1] - X_node[idx + 1]);
             
-                X_diff_dot_U =   (X_target[0] - X_node[idx + 0]) * U_node[idx + 0]
-                               + (X_target[1] - X_node[idx + 1]) * U_node[idx + 1];
+                X_diff_dot_U =   (X_target[0] - X_node[idx + 0]) * (U_target[0] - U_node[idx + 0])
+                               + (X_target[1] - X_node[idx + 1]) * (U_target[1] - U_node[idx + 1]);
             
             #elif (NDIM == 3)
             
@@ -1317,16 +1338,16 @@ IBStandardForceGen::computeLagrangianTargetPointForce(Pointer<LData> F_data,
                                + (X_target[1] - X_node[idx + 1]) * (X_target[1] - X_node[idx + 1])
                                + (X_target[2] - X_node[idx + 2]) * (X_target[2] - X_node[idx + 2]);
             
-                X_diff_dot_U =   (X_target[0] - X_node[idx + 0]) * U_node[idx + 0]
-                               + (X_target[1] - X_node[idx + 1]) * U_node[idx + 1]
-                               + (X_target[2] - X_node[idx + 2]) * U_node[idx + 2];
+                X_diff_dot_U =   (X_target[0] - X_node[idx + 0]) * (U_target[0] - U_node[idx + 0])
+                               + (X_target[1] - X_node[idx + 1]) * (U_target[1] - U_node[idx + 1])
+                               + (X_target[2] - X_node[idx + 2]) * (U_target[2] - U_node[idx + 2]);
             
             #endif
             
             // Note that if L is zero, then the force is zero since |X_target - X_node| = 0
             //    and everything is projected in that direction
             // Set to zero if L is zero, since L (as a function of X_node)
-            T_damping_over_L = ((L_squared > 0.0) ? (-E * X_diff_dot_U / L_squared) : 0.0);
+            T_damping_over_L = ((L_squared > 0.0) ? (E * X_diff_dot_U / L_squared) : 0.0);
             
             F_node[idx + 0] += (K + T_damping_over_L) * (X_target[0] - X_node[idx + 0]) ;
             F_node[idx + 1] += (K + T_damping_over_L) * (X_target[1] - X_node[idx + 1]) ;
@@ -1354,13 +1375,29 @@ IBStandardForceGen::computeLagrangianTargetPointForce(Pointer<LData> F_data,
         E = *eta[k];
         X_target = X0[k]->data();
 
+        if (E > 100.0)
+        {
+            U_target[0] = move_info->U_target[0];
+            U_target[1] = move_info->U_target[1];
+            U_target[2] = move_info->U_target[2]; 
+            //std::cout << "moving on target with coords " 
+            //          << X_target[0] << ", " << X_target[1] << ", " << X_target[2] << ". eta = " << E << " U = " 
+            //          << U_target[0] << ", " << U_target[1] << ", " << U_target[2] << "\n\n";        
+        }
+        else
+        {
+            U_target[0] = 0.0; 
+            U_target[1] = 0.0; 
+            U_target[2] = 0.0; 
+        } 
+
         #if (NDIM == 2)
-            
+        
             L_squared =      (X_target[0] - X_node[idx + 0]) * (X_target[0] - X_node[idx + 0])
                            + (X_target[1] - X_node[idx + 1]) * (X_target[1] - X_node[idx + 1]);
         
-            X_diff_dot_U =   (X_target[0] - X_node[idx + 0]) * U_node[idx + 0]
-                           + (X_target[1] - X_node[idx + 1]) * U_node[idx + 1];
+            X_diff_dot_U =   (X_target[0] - X_node[idx + 0]) * (U_target[0] - U_node[idx + 0])
+                           + (X_target[1] - X_node[idx + 1]) * (U_target[1] - U_node[idx + 1]);
         
         #elif (NDIM == 3)
         
@@ -1368,16 +1405,16 @@ IBStandardForceGen::computeLagrangianTargetPointForce(Pointer<LData> F_data,
                            + (X_target[1] - X_node[idx + 1]) * (X_target[1] - X_node[idx + 1])
                            + (X_target[2] - X_node[idx + 2]) * (X_target[2] - X_node[idx + 2]);
         
-            X_diff_dot_U =   (X_target[0] - X_node[idx + 0]) * U_node[idx + 0]
-                           + (X_target[1] - X_node[idx + 1]) * U_node[idx + 1]
-                           + (X_target[2] - X_node[idx + 2]) * U_node[idx + 2];
+            X_diff_dot_U =   (X_target[0] - X_node[idx + 0]) * (U_target[0] - U_node[idx + 0])
+                           + (X_target[1] - X_node[idx + 1]) * (U_target[1] - U_node[idx + 1])
+                           + (X_target[2] - X_node[idx + 2]) * (U_target[2] - U_node[idx + 2]);
         
         #endif
         
         // Note that if L is zero, then the force is zero since |X_target - X_node| = 0
         //    and everything is projected in that direction
         // Set to zero if L is zero, since L (as a function of X_node)
-        T_damping_over_L = ((L_squared > 0.0) ? (-E * X_diff_dot_U / L_squared) : 0.0);
+        T_damping_over_L = ((L_squared > 0.0) ? (E * X_diff_dot_U / L_squared) : 0.0);
         
         F_node[idx + 0] += (K + T_damping_over_L) * (X_target[0] - X_node[idx + 0]) ;
         F_node[idx + 1] += (K + T_damping_over_L) * (X_target[1] - X_node[idx + 1]) ;

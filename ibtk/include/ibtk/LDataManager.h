@@ -71,7 +71,7 @@ typedef struct{
     bool allocated; 
     int n_moving; 
     int *indices;
-    double u_target[3];  
+    double U_target[3];  
 } movement_info; 
 
 
