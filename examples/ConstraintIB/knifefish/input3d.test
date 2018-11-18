@@ -129,8 +129,7 @@ ConstraintIBMethod {
    enable_logging           = ENABLE_LOGGING
    num_INS_cycles           = NUM_CYCLES
    needs_divfree_projection = FALSE
-   rho_fluid                = RHO
-   mu_fluid                 = MU
+   rho_solid                = RHO
    
    PrintOutput {
    print_output          = TRUE               //default false
@@ -353,7 +352,7 @@ Main {
    log_all_nodes               = FALSE
 
 // visualization dump parameters
-   viz_writer                  = "VisIt"
+   viz_writer                  = "VisIt","Silo"
    viz_dump_interval           = int(END_TIME/(3*DT_MAX))
    viz_dump_dirname            = "viz_KnifeFish"
    visit_number_procs_per_file = 1

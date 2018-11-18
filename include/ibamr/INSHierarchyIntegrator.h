@@ -1,7 +1,7 @@
 // Filename: INSHierarchyIntegrator.h
 // Created on 10 Aug 2011 by Boyce Griffith
 //
-// Copyright (c) 2002-2014, Boyce Griffith
+// Copyright (c) 2002-2017, Boyce Griffith
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -249,23 +249,6 @@ public:
     SAMRAI::solv::RobinBcCoefStrategy<NDIM>* getProjectionBoundaryConditions() const;
 
     /*!
-     * Register a variable mass density variable with the hierarchy integrator.
-     */
-    void registerMassDensityVariable(SAMRAI::tbox::Pointer<SAMRAI::hier::Variable<NDIM> > rho_var);
-
-    /*!
-     * Supply an IBTK:CartGridFunction object to specify the value the mass
-     * density variable.
-     */
-    void setMassDensityFunction(SAMRAI::tbox::Pointer<IBTK::CartGridFunction> rho_fcn);
-
-    /*!
-     * Get the IBTK::CartGridFunction object being used to specify the value of
-     * the mass density variable.
-     */
-    SAMRAI::tbox::Pointer<IBTK::CartGridFunction> getMassDensityFunction() const;
-
-    /*!
      * \brief Set the convective operator type to be used by the solver.
      */
     void setConvectiveOperatorType(const std::string& op_type);
@@ -496,7 +479,7 @@ protected:
     /*!
      * Fluid solver variables.
      */
-    SAMRAI::tbox::Pointer<SAMRAI::hier::Variable<NDIM> > d_U_var, d_P_var, d_F_var, d_Q_var, d_rho_var;
+    SAMRAI::tbox::Pointer<SAMRAI::hier::Variable<NDIM> > d_U_var, d_P_var, d_F_var, d_Q_var;
 
     /*!
      * Objects to set initial conditions, boundary conditions, body forces, and
@@ -507,9 +490,11 @@ protected:
     std::vector<SAMRAI::solv::RobinBcCoefStrategy<NDIM> *> d_bc_coefs, d_U_bc_coefs, d_U_star_bc_coefs;
     TractionBcType d_traction_bc_type;
     SAMRAI::solv::RobinBcCoefStrategy<NDIM> *d_P_bc_coef, *d_Phi_bc_coef;
-    SAMRAI::tbox::Pointer<IBTK::CartGridFunction> d_F_fcn, d_Q_fcn, d_rho_fcn;
+    SAMRAI::tbox::Pointer<IBTK::CartGridFunction> d_F_fcn, d_Q_fcn;
     SAMRAI::tbox::Pointer<IBTK::HierarchyGhostCellInterpolation> d_U_bdry_bc_fill_op, d_P_bdry_bc_fill_op,
         d_Q_bdry_bc_fill_op, d_no_fill_op;
+
+    bool d_use_div_sink_drag_term;
 
     /*!
      * Hierarchy operators and solvers and related configuration data.
@@ -522,18 +507,21 @@ protected:
     SAMRAI::tbox::Pointer<ConvectiveOperator> d_convective_op;
     bool d_convective_op_needs_init;
 
-    std::string d_velocity_solver_type, d_velocity_precond_type;
-    SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> d_velocity_solver_db, d_velocity_precond_db;
+    std::string d_velocity_solver_type, d_velocity_precond_type, d_velocity_sub_precond_type;
+    SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> d_velocity_solver_db, d_velocity_precond_db,
+        d_velocity_sub_precond_db;
     SAMRAI::tbox::Pointer<IBTK::PoissonSolver> d_velocity_solver;
     bool d_velocity_solver_needs_init;
 
-    std::string d_pressure_solver_type, d_pressure_precond_type;
-    SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> d_pressure_solver_db, d_pressure_precond_db;
+    std::string d_pressure_solver_type, d_pressure_precond_type, d_pressure_sub_precond_type;
+    SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> d_pressure_solver_db, d_pressure_precond_db,
+        d_pressure_sub_precond_db;
     SAMRAI::tbox::Pointer<IBTK::PoissonSolver> d_pressure_solver;
     bool d_pressure_solver_needs_init;
 
-    std::string d_regrid_projection_solver_type, d_regrid_projection_precond_type;
-    SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> d_regrid_projection_solver_db, d_regrid_projection_precond_db;
+    std::string d_regrid_projection_solver_type, d_regrid_projection_precond_type, d_regrid_projection_sub_precond_type;
+    SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> d_regrid_projection_solver_db, d_regrid_projection_precond_db,
+        d_regrid_projection_sub_precond_db;
 
 private:
     /*!

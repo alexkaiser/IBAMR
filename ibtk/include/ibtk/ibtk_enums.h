@@ -1,7 +1,7 @@
 // Filename: ibtk_enums.h
 // Created on 13 Aug 2011 by Boyce Griffith
 //
-// Copyright (c) 2002-2014, Boyce Griffith
+// Copyright (c) 2002-2017, Boyce Griffith
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -163,6 +163,35 @@ enum_to_string<VariableContextType>(VariableContextType val)
     if (val == NEW_DATA) return "NEW_DATA";
     if (val == SCRATCH_DATA) return "SCRATCH_DATA";
     return "UNKNOWN_VARIABLE_CONTEXT_TYPE";
+} // enum_to_string
+
+/*!
+ * \brief Enumerated type for different interpolation types for 
+ * the material properties of the viscous solver.
+ */
+enum VCInterpType
+{
+    VC_AVERAGE_INTERP = 1,
+    VC_HARMONIC_INTERP = 2,
+    UNKNOWN_VC_INTERP_TYPE = -1
+};
+
+template <>
+inline VCInterpType
+string_to_enum<VCInterpType>(const std::string& val)
+{
+    if (strcasecmp(val.c_str(), "VC_AVERAGE_INTERP") == 0) return VC_AVERAGE_INTERP;
+    if (strcasecmp(val.c_str(), "VC_HARMONIC_INTERP") == 0) return VC_HARMONIC_INTERP;
+    return UNKNOWN_VC_INTERP_TYPE;
+} // string_to_enum
+
+template <>
+inline std::string
+enum_to_string<VCInterpType>(VCInterpType val)
+{
+    if (val == VC_AVERAGE_INTERP) return "VC_AVERAGE_INTERP";
+    if (val == VC_HARMONIC_INTERP) return "VC_HARMONIC_INTERP";
+    return "UNKNOWN_VC_INTERP_TYPE";
 } // enum_to_string
 
 } // namespace IBTK

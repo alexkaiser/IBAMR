@@ -1,7 +1,7 @@
 // Filename: IBStrategy.cpp
 // Created on 21 Sep 2011 by Boyce Griffith
 //
-// Copyright (c) 2002-2014, Boyce Griffith
+// Copyright (c) 2002-2017, Boyce Griffith
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -189,6 +189,7 @@ IBStrategy::computeLagrangianFluidSource(double /*data_time*/)
 
 void
 IBStrategy::spreadFluidSource(int /*q_data_idx*/,
+                              RobinPhysBdryPatchStrategy* /*q_phys_bdry_op*/,
                               const std::vector<Pointer<RefineSchedule<NDIM> > >& /*q_prolongation_scheds*/,
                               double /*data_time*/)
 {

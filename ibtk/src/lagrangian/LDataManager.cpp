@@ -1,7 +1,7 @@
 // Filename: LDataManager.cpp
 // Created on 01 Mar 2004 by Boyce Griffith
 //
-// Copyright (c) 2002-2014, Boyce Griffith
+// Copyright (c) 2002-2017, Boyce Griffith
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -845,6 +845,7 @@ LDataManager::registerLInitStrategy(Pointer<LInitStrategy> lag_init)
     TBOX_ASSERT(lag_init);
 #endif
     d_lag_init = lag_init;
+    d_lag_init->init();
     return;
 } // registerLInitStrategy
 
@@ -2215,6 +2216,15 @@ LDataManager::initializeLevelData(const Pointer<BasePatchHierarchy<NDIM> > hiera
         createLData(INIT_POSN_DATA_NAME, level_number, NDIM, maintain_data);
         createLData(VEL_DATA_NAME, level_number, NDIM, maintain_data);
 
+        // Create the user defined LData
+        for (std::map<std::string, int>::const_iterator cit(d_user_defined_ldata.begin());
+             cit != d_user_defined_ldata.end();
+             ++cit)
+        {
+            createLData(cit->first, level_number, cit->second, maintain_data);
+        }
+
+
         // 3. Initialize the Lagrangian data.
         d_lag_init->initializeStructureIndexingOnPatchLevel(d_strct_id_to_strct_name_map[level_number],
                                                             d_strct_id_to_lag_idx_range_map[level_number],
@@ -2707,6 +2717,19 @@ void LDataManager::free_movement_info()
     delete d_movement_info; 
     return; 
 }
+
+void
+LDataManager::registerUserDefinedLData(const std::string& data_name,
+                                       int depth)
+{
+#if !defined(NDEBUG)
+    TBOX_ASSERT(!data_name.empty());
+    TBOX_ASSERT(depth > 0);
+#endif
+    d_user_defined_ldata[data_name] = depth;
+    return;
+} // registerUserDefinedLData
+
 
 /////////////////////////////// PROTECTED ////////////////////////////////////
 

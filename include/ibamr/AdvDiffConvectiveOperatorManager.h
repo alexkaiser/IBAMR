@@ -1,7 +1,7 @@
 // Filename: AdvDiffConvectiveOperatorManager.h
 // Created on 17 Aug 2012 by Boyce Griffith
 //
-// Copyright (c) 2002-2014, Boyce Griffith
+// Copyright (c) 2002-2017, Boyce Griffith
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -72,7 +72,9 @@ public:
      */
     static const std::string DEFAULT;
     static const std::string CENTERED;
+    static const std::string CUI;
     static const std::string PPM;
+    static const std::string WAVE_PROP;
 
     /*!
      * Return a pointer to the instance of the operator manager.  Access to

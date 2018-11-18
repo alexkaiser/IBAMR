@@ -1,7 +1,7 @@
 // Filename: KrylovMobilitySolver.cpp
 // Created on 28 Oct 2013 by Amneet Bhalla
 //
-// Copyright (c) 2002-2014, Amneet Bhalla and Boyce Griffith
+// Copyright (c) 2002-2017, Amneet Bhalla and Boyce Griffith
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -898,7 +898,6 @@ KrylovMobilitySolver::resetKSPPC()
     }
     else if (pc_type == "shell")
     {
-        const std::string pc_name = d_object_name + pc_type;
         PCSetType(petsc_pc, PCSHELL);
         PCShellSetContext(petsc_pc, static_cast<void*>(this));
         PCShellSetApply(petsc_pc, KrylovMobilitySolver::PCApply_KMInv);

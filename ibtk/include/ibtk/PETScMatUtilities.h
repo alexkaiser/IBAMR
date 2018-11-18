@@ -1,7 +1,7 @@
 // Filename: PETScMatUtilities.h
 // Created on 24 Aug 2010 by Boyce Griffith
 //
-// Copyright (c) 2002-2014, Boyce Griffith
+// Copyright (c) 2002-2017, Boyce Griffith
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -39,6 +39,7 @@
 #include <vector>
 
 #include "PoissonSpecifications.h"
+#include "ibtk/ibtk_enums.h"
 #include "petscao.h"
 #include "petscmat.h"
 #include "petscvec.h"
@@ -115,6 +116,26 @@ public:
                                                const std::vector<int>& num_dofs_per_proc,
                                                int dof_index_idx,
                                                SAMRAI::tbox::Pointer<SAMRAI::hier::PatchLevel<NDIM> > patch_level);
+
+    /*!
+     * \brief Construct a parallel PETSc Mat object corresponding to the
+     * side-centered viscous operator of a side-centered velocity variable
+     * restricted to a single SAMRAI::hier::PatchLevel.
+     *
+     * \note The scaling factors of \f$ C \f$ and \f$ D \f$ variables in
+     * the PoissonSpecification object are passed separately and are denoted
+     * by \f$ \beta \f$ and \f$ \alpha \f$, respectively.
+     */
+    static void constructPatchLevelVCSCViscousOp(Mat& mat,
+                                                 const SAMRAI::solv::PoissonSpecifications& poisson_spec,
+                                                 double alpha,
+                                                 double beta,
+                                                 const std::vector<SAMRAI::solv::RobinBcCoefStrategy<NDIM>*>& bc_coefs,
+                                                 double data_time,
+                                                 const std::vector<int>& num_dofs_per_proc,
+                                                 int dof_index_idx,
+                                                 SAMRAI::tbox::Pointer<SAMRAI::hier::PatchLevel<NDIM> > patch_level,
+                                                 VCInterpType mu_interp_type = VC_HARMONIC_INTERP);
 
     /*!
      * \brief Construct a parallel PETSc Mat object corresponding to the

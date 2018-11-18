@@ -59,32 +59,14 @@ if test "$LIBMESH_ENABLED" = yes; then
 #if !defined LIBMESH_SUBMINOR_VERSION
 #define LIBMESH_SUBMINOR_VERSION LIBMESH_MICRO_VERSION
 #endif
-#if ((LIBMESH_MAJOR_VERSION >= 1) || ((LIBMESH_MINOR_VERSION >= 0) && (LIBMESH_SUBMINOR_VERSION >= 0)))
+#if LIBMESH_MAJOR_VERSION >= 1
 #else
 asdf
 #endif
   ]])],[LIBMESH_VERSION_VALID=yes],[LIBMESH_VERSION_VALID=no])
   AC_MSG_RESULT([${LIBMESH_VERSION_VALID}])
   if test "$LIBMESH_VERSION_VALID" = no; then
-    AC_MSG_ERROR([invalid libMesh version detected: please use libMesh 1.0.0 or newer])
-  fi
-  AC_MSG_CHECKING([if libMesh is configured with UniquePtr ***disabled***])
-  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
-#include <libmesh/auto_ptr.h>
-
-#if defined(UniquePtr)
-#if (UniquePtr == AutoPtr)
-// intentionally blank
-#else
-asdf
-#endif
-#else
-asdf
-#endif
-  ]])],[LIBMESH_HAS_UNIQUEPTR=no],[LIBMESH_HAS_UNIQUEPTR=yes])
-  AC_MSG_RESULT([${LIBMESH_VERSION_VALID}])
-  if test "$LIBMESH_HAS_UNIQUEPTR" = yes; then
-    AC_MSG_ERROR([please rerun libMesh configure with UniquePtr disabled (--disable-unique-ptr)])
+    AC_MSG_ERROR([invalid libMesh version detected: please use libMesh 1.1.0 or newer])
   fi
   AC_MSG_NOTICE([obtaining libMesh configuration information from libmesh_common.h])
   AC_RUN_IFELSE([AC_LANG_SOURCE([
@@ -134,6 +116,30 @@ int main()
   LIBMESH_FCFLAGS="`$LIBMESH_CONFIG --fflags`"
   LIBMESH_LIBS="`$LIBMESH_CONFIG --libs`"
 
+  # libMesh implements UniquePtr by including parts of boost in
+  # libmesh/unique_ptr.hpp (or in contrib/unique_ptr/unique_ptr.hpp). This
+  # causes compilation errors when one #includes both that file and the original
+  # file from boost, since the preprocessor guards on the libMesh-provided
+  # unique_ptr.hpp do not match the preprocessor guards on the boost headers (so
+  # we get multiple definition errors). To ensure that this does not happen,
+  # check that libMesh will not include unique_ptr.hpp in its own auto_ptr.hpp
+  # file (which we use). libMesh uses the preprocessor guard symbol
+  # UNIQUE_PTR_HPP in 1.0, 1.1, 1.2, and 1.3, so we check for that.
+
+  AC_MSG_CHECKING([for a usable libMesh UniquePtr/unique_ptr configuration])
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#include <libmesh/auto_ptr.h>
+
+#ifdef UNIQUE_PTR_HPP
+#error
+#endif
+
+  ]])],[LIBMESH_UNIQUE_PTR_OK=yes],[LIBMESH_UNIQUE_PTR_OK=no])
+  AC_MSG_RESULT([${LIBMESH_UNIQUE_PTR_OK}])
+  if test "$LIBMESH_UNIQUE_PTR_OK" = no; then
+    AC_MSG_ERROR([If libMesh is compiled without C++11 support then it must be compiled with --disable-unique-ptr or (in version 1.1 or later) compiled with a copy of boost including boost.move.])
+  fi
+
   AC_LIB_HAVE_LINKFLAGS([netcdf])
   if test "$HAVE_LIBNETCDF" = yes ; then
     LIBMESH_LIBS="$LIBMESH_LIBS $LIBNETCDF"
@@ -145,7 +151,7 @@ int main()
   fi
 
   if test -e "$LIBMESH_DIR/include/boost" ; then
-    AC_MSG_ERROR([libMesh must be configured to use an external boost library])
+    AC_MSG_ERROR([libMesh appears to be configured to use a bundled Boost library, but when IBAMR is also configured to use libMesh, IBAMR and libMesh both must use the same (external) Boost library])
   fi
 
   CPPFLAGS_PREPEND($LIBMESH_CPPFLAGS)

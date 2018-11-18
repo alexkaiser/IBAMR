@@ -1,7 +1,7 @@
 // Filename: PhysicalBoundaryUtilities.cpp
 // Created on 30 Sep 2006 by Boyce Griffith
 //
-// Copyright (c) 2002-2014, Boyce Griffith
+// Copyright (c) 2002-2017, Boyce Griffith
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -147,10 +147,6 @@ PhysicalBoundaryUtilities::isLower(int loc, int codim, int direction)
             return (loc == 0 || loc == 1 || loc == 4 || loc == 6);
         }
     }
-    else if (codim == 2)
-    {
-        return false;
-    }
 #endif
 
     TBOX_ERROR("this statement should not be reached!\n");
@@ -189,10 +185,6 @@ PhysicalBoundaryUtilities::isUpper(int loc, int codim, int direction)
         {
             return (loc == 2 || loc == 3 || loc == 5 || loc == 7);
         }
-    }
-    else if (codim == 2)
-    {
-        return false;
     }
 #endif
 

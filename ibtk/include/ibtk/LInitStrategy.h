@@ -1,7 +1,7 @@
 // Filename: LInitStrategy.h
 // Created on 11 Jul 2004 by Boyce Griffith
 //
-// Copyright (c) 2002-2014, Boyce Griffith
+// Copyright (c) 2002-2017, Boyce Griffith
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,9 @@
 #include <map>
 #include <string>
 #include <utility>
+#include <vector>
 
+#include "ibtk/ibtk_utilities.h"
 #include "tbox/DescribedClass.h"
 #include "tbox/Pointer.h"
 
@@ -108,6 +110,13 @@ public:
                                       double init_data_time,
                                       bool can_be_refined,
                                       bool initial_time) = 0;
+
+    /*!
+     * \brief Initialize structure specific configurations.
+     *
+     * \note A default empty implementation is provided.
+     */
+    virtual void init() {};
 
     /*!
      * \brief Initialize the structure indexing information on the patch level.

@@ -1,7 +1,7 @@
 // Filename: INSStaggeredHierarchyIntegrator.h
 // Created on 20 Mar 2008 by Boyce Griffith
 //
-// Copyright (c) 2002-2014, Boyce Griffith
+// Copyright (c) 2002-2017, Boyce Griffith
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -352,8 +352,8 @@ private:
     std::vector<SAMRAI::tbox::Pointer<SAMRAI::solv::SAMRAIVectorReal<NDIM, double> > > d_U_nul_vecs;
     bool d_vectors_need_init, d_explicitly_remove_nullspace;
 
-    std::string d_stokes_solver_type, d_stokes_precond_type;
-    SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> d_stokes_solver_db, d_stokes_precond_db;
+    std::string d_stokes_solver_type, d_stokes_precond_type, d_stokes_sub_precond_type;
+    SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> d_stokes_solver_db, d_stokes_precond_db, d_stokes_sub_precond_db;
     SAMRAI::tbox::Pointer<StaggeredStokesSolver> d_stokes_solver;
     bool d_stokes_solver_needs_init;
 
@@ -377,9 +377,6 @@ private:
     SAMRAI::tbox::Pointer<SAMRAI::pdat::SideVariable<NDIM, double> > d_indicator_var;
     SAMRAI::tbox::Pointer<SAMRAI::pdat::SideVariable<NDIM, double> > d_F_div_var;
 
-    SAMRAI::tbox::Pointer<SAMRAI::pdat::SideVariable<NDIM, double> > d_rho_var;
-    SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> > d_rho_cc_var;
-
     SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> > d_EE_var;
 
     /*
@@ -393,7 +390,6 @@ private:
     int d_F_current_idx, d_F_new_idx, d_F_scratch_idx;
     int d_Q_current_idx, d_Q_new_idx, d_Q_scratch_idx;
     int d_N_old_current_idx, d_N_old_new_idx, d_N_old_scratch_idx;
-    int d_rho_current_idx, d_rho_new_idx, d_rho_scratch_idx;
 
     /*
      * Patch data descriptor indices for all "plot" variables managed by the
@@ -401,7 +397,7 @@ private:
      *
      * Plot variables have one context: current.
      */
-    int d_U_cc_idx, d_F_cc_idx, d_Omega_idx, d_Div_U_idx, d_rho_cc_idx, d_EE_idx;
+    int d_U_cc_idx, d_F_cc_idx, d_Omega_idx, d_Div_U_idx, d_EE_idx;
 
     /*
      * Patch data descriptor indices for all "scratch" variables managed by the

@@ -1,7 +1,7 @@
 // Filename: INSCollocatedHierarchyIntegrator.cpp
 // Created on 24 Aug 2011 by Boyce Griffith
 //
-// Copyright (c) 2002-2014, Boyce Griffith
+// Copyright (c) 2002-2017, Boyce Griffith
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -478,14 +478,19 @@ INSCollocatedHierarchyIntegrator::getVelocitySubdomainSolver()
 {
     if (!d_velocity_solver)
     {
-        d_velocity_solver = CCPoissonSolverManager::getManager()->allocateSolver(d_velocity_solver_type,
-                                                                                 d_object_name + "::velocity_solver",
-                                                                                 d_velocity_solver_db,
-                                                                                 "velocity_",
-                                                                                 d_velocity_precond_type,
-                                                                                 d_object_name + "::velocity_precond",
-                                                                                 d_velocity_precond_db,
-                                                                                 "velocity_pc_");
+        d_velocity_solver =
+            CCPoissonSolverManager::getManager()->allocateSolver(d_velocity_solver_type,
+                                                                 d_object_name + "::velocity_solver",
+                                                                 d_velocity_solver_db,
+                                                                 "velocity_",
+                                                                 d_velocity_precond_type,
+                                                                 d_object_name + "::velocity_precond",
+                                                                 d_velocity_precond_db,
+                                                                 "velocity_pc_",
+                                                                 d_velocity_sub_precond_type,
+                                                                 d_object_name + "::velocity_sub_precond",
+                                                                 d_velocity_sub_precond_db,
+                                                                 "velocity_sub_pc_");
         d_velocity_solver_needs_init = true;
     }
     return d_velocity_solver;
@@ -496,14 +501,19 @@ INSCollocatedHierarchyIntegrator::getPressureSubdomainSolver()
 {
     if (!d_pressure_solver)
     {
-        d_pressure_solver = CCPoissonSolverManager::getManager()->allocateSolver(d_pressure_solver_type,
-                                                                                 d_object_name + "::pressure_solver",
-                                                                                 d_pressure_solver_db,
-                                                                                 "pressure_",
-                                                                                 d_pressure_precond_type,
-                                                                                 d_object_name + "::pressure_precond",
-                                                                                 d_pressure_precond_db,
-                                                                                 "pressure_pc_");
+        d_pressure_solver =
+            CCPoissonSolverManager::getManager()->allocateSolver(d_pressure_solver_type,
+                                                                 d_object_name + "::pressure_solver",
+                                                                 d_pressure_solver_db,
+                                                                 "pressure_",
+                                                                 d_pressure_precond_type,
+                                                                 d_object_name + "::pressure_precond",
+                                                                 d_pressure_precond_db,
+                                                                 "pressure_pc_",
+                                                                 d_pressure_sub_precond_type,
+                                                                 d_object_name + "::pressure_sub_precond",
+                                                                 d_pressure_sub_precond_db,
+                                                                 "pressure_sub_pc_");
         d_pressure_solver_needs_init = true;
     }
     return d_pressure_solver;
@@ -517,12 +527,6 @@ INSCollocatedHierarchyIntegrator::initializeHierarchyIntegrator(Pointer<PatchHie
 
     d_hierarchy = hierarchy;
     d_gridding_alg = gridding_alg;
-
-    if (d_rho_var)
-    {
-        TBOX_ERROR("INSCollocatedHierarchyIntegrator::initializeHierarchyIntegrator():\n"
-                   << "  variable density solver not presently supported.\n");
-    }
 
     if (d_gridding_alg->getMaxLevels() > 1 && d_projection_method_type == PRESSURE_INCREMENT)
     {
@@ -1217,7 +1221,7 @@ INSCollocatedHierarchyIntegrator::integrateHierarchy(const double current_time,
         d_Q_bdry_bc_fill_op->fillData(half_time);
 
         // Account for momentum loss at sources/sinks.
-        if (!d_creeping_flow)
+        if (d_use_div_sink_drag_term && !d_creeping_flow)
         {
             d_hier_cc_data_ops->linearSum(d_U_scratch_idx, 0.5, d_U_current_idx, 0.5, d_U_new_idx);
             computeDivSourceTerm(d_F_div_idx, d_Q_scratch_idx, d_U_scratch_idx);
@@ -1881,7 +1885,11 @@ INSCollocatedHierarchyIntegrator::regridProjection()
                                                              d_regrid_projection_precond_type,
                                                              d_object_name + "::regrid_projection_precond",
                                                              d_regrid_projection_precond_db,
-                                                             "regrid_projection_pc_");
+                                                             "regrid_projection_pc_",
+                                                             d_regrid_projection_sub_precond_type,
+                                                             d_object_name + "::regrid_projection_sub_precond",
+                                                             d_regrid_projection_sub_precond_db,
+                                                             "regrid_projection_sub_pc_");
     PoissonSpecifications regrid_projection_spec(d_object_name + "::regrid_projection_spec");
     regrid_projection_spec.setCZero();
     regrid_projection_spec.setDConstant(-1.0);

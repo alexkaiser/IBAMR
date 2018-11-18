@@ -75,7 +75,8 @@ PK1_dev_stress_function(TensorValue<double>& PP,
                         const libMesh::Point& /*X*/,
                         const libMesh::Point& /*s*/,
                         Elem* const /*elem*/,
-                        const vector<NumericVector<double>*>& /*system_data*/,
+                        const std::vector<const std::vector<double>*>& /*var_data*/,
+                        const std::vector<const std::vector<VectorValue<double> >*>& /*grad_var_data*/,
                         double /*time*/,
                         void* /*ctx*/)
 {
@@ -89,7 +90,8 @@ PK1_dil_stress_function(TensorValue<double>& PP,
                         const libMesh::Point& /*X*/,
                         const libMesh::Point& /*s*/,
                         Elem* const /*elem*/,
-                        const vector<NumericVector<double>*>& /*system_data*/,
+                        const std::vector<const std::vector<double>*>& /*var_data*/,
+                        const std::vector<const std::vector<VectorValue<double> >*>& /*grad_var_data*/,
                         double /*time*/,
                         void* /*ctx*/)
 {
@@ -141,7 +143,16 @@ run_example(int argc, char* argv[])
         const bool dump_viz_data = app_initializer->dumpVizData();
         const int viz_dump_interval = app_initializer->getVizDumpInterval();
         const bool uses_visit = dump_viz_data && app_initializer->getVisItDataWriter();
+#ifdef LIBMESH_HAVE_EXODUS_API
         const bool uses_exodus = dump_viz_data && !app_initializer->getExodusIIFilename().empty();
+#else
+        const bool uses_exodus = false;
+        if (!app_initializer->getExodusIIFilename().empty())
+        {
+            plog << "WARNING: libMesh was compiled without Exodus support, so no "
+                 << "Exodus output will be written in this program.\n";
+        }
+#endif
         const string exodus_filename = app_initializer->getExodusIIFilename();
         const bool uses_gmv = dump_viz_data && !app_initializer->getGMVFilename().empty();
         const string gmv_filename = app_initializer->getGMVFilename();
@@ -282,6 +293,7 @@ run_example(int argc, char* argv[])
             Utility::string_to_enum<libMesh::Order>(input_db->getStringWithDefault("PK1_DIL_QUAD_ORDER", "FIRST"));
         ib_method_ops->registerPK1StressFunction(PK1_dev_stress_data);
         ib_method_ops->registerPK1StressFunction(PK1_dil_stress_data);
+        ib_method_ops->initializeFEEquationSystems();
         EquationSystems* equation_systems = ib_method_ops->getFEDataManager()->getEquationSystems();
 
         // Create Eulerian initial condition specification objects.
@@ -341,8 +353,8 @@ run_example(int argc, char* argv[])
         {
             time_integrator->registerVisItDataWriter(visit_data_writer);
         }
-        AutoPtr<ExodusII_IO> exodus_io(uses_exodus ? new ExodusII_IO(mesh) : NULL);
-        AutoPtr<GMVIO> gmv_io(uses_gmv ? new GMVIO(mesh) : NULL);
+        libMesh::UniquePtr<ExodusII_IO> exodus_io(uses_exodus ? new ExodusII_IO(mesh) : NULL);
+        libMesh::UniquePtr<GMVIO> gmv_io(uses_gmv ? new GMVIO(mesh) : NULL);
 
         // Initialize hierarchy configuration and data on all patches.
         ib_method_ops->initializeFEData();

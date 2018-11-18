@@ -1,8 +1,6 @@
 ## Process this file with automake to produce Makefile.in
 include $(top_srcdir)/config/Make-rules
 
-if GSL_ENABLED
-
 ## Dimension-dependent testers
 EXAMPLE_DRIVER = CartGridBodyForce.cpp ForceProjector.cpp RigidBodyKinematics.cpp ex_main.cpp
 GTEST_DRIVER = CartGridBodyForce.cpp ForceProjector.cpp RigidBodyKinematics.cpp test_main.cpp
@@ -46,19 +44,11 @@ clean-local:
 	  rm -f $(builddir)/sphere3d.vertex ;\
 	fi ;
 
-else
-examples:
-	@echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-	@echo " This example needs GNU Scientific Library.                          "
-	@echo " Configure IBAMR with additional options --enable-gsl --with-gsl=path"
-	@echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-endif
-
 if GTEST_ENABLED
 gtest: $(GTESTS)
 	if test "$(top_srcdir)" != "$(top_builddir)" ; then \
 	  cp -f $(srcdir)/input3d.test $(PWD) ; \
-	  cp -f $(srcdir)/eel3d.vertex $(PWD) ; \
+	  cp -f $(srcdir)/sphere3d.vertex $(PWD) ; \
 	fi ;
 
 gtest-long:

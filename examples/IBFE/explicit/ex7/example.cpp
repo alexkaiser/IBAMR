@@ -73,7 +73,8 @@ upper_PK1_stress_function(TensorValue<double>& PP,
                           const libMesh::Point& /*X*/,
                           const libMesh::Point& s,
                           Elem* const /*elem*/,
-                          const vector<NumericVector<double>*>& /*system_data*/,
+                          const vector<const vector<double>*>& /*var_data*/,
+                          const vector<const vector<VectorValue<double> >*>& /*grad_var_data*/,
                           double /*time*/,
                           void* /*ctx*/)
 {
@@ -100,7 +101,8 @@ lower_tether_force_function(VectorValue<double>& F,
                             const libMesh::Point& X,
                             const libMesh::Point& s,
                             Elem* const /*elem*/,
-                            const vector<NumericVector<double>*>& /*system_data*/,
+                            const vector<const vector<double>*>& /*var_data*/,
+                            const vector<const vector<VectorValue<double> >*>& /*grad_var_data*/,
                             double /*time*/,
                             void* /*ctx*/)
 {
@@ -114,7 +116,8 @@ upper_tether_force_function(VectorValue<double>& F,
                             const libMesh::Point& X,
                             const libMesh::Point& s,
                             Elem* const /*elem*/,
-                            const vector<NumericVector<double>*>& /*system_data*/,
+                            const vector<const vector<double>*>& /*var_data*/,
+                            const vector<const vector<VectorValue<double> >*>& /*grad_var_data*/,
                             double /*time*/,
                             void* /*ctx*/)
 {
@@ -172,7 +175,16 @@ bool run_example(int argc, char* argv[])
         const bool dump_viz_data = app_initializer->dumpVizData();
         const int viz_dump_interval = app_initializer->getVizDumpInterval();
         const bool uses_visit = dump_viz_data && app_initializer->getVisItDataWriter();
+#ifdef LIBMESH_HAVE_EXODUS_API
         const bool uses_exodus = dump_viz_data && !app_initializer->getExodusIIFilename().empty();
+#else
+        const bool uses_exodus = false;
+        if (!app_initializer->getExodusIIFilename().empty())
+        {
+            plog << "WARNING: libMesh was compiled without Exodus support, so no "
+                 << "Exodus output will be written in this program.\n";
+        }
+#endif
         const string lower_exodus_filename = app_initializer->getExodusIIFilename("lower");
         const string upper_exodus_filename = app_initializer->getExodusIIFilename("upper");
 
@@ -211,25 +223,7 @@ bool run_example(int argc, char* argv[])
                                             D + 0.5 * w,
                                             Utility::string_to_enum<ElemType>(elem_type));
         lower_mesh.prepare_for_use();
-#if 0
-        MeshBase::const_element_iterator el_end = lower_mesh.elements_end();
-        for (MeshBase::const_element_iterator el = lower_mesh.elements_begin(); el != el_end; ++el)
-        {
-            Elem* const elem = *el;
-            for (unsigned int side = 0; side < elem->n_sides(); ++side)
-            {
-                const bool at_mesh_bdry = !elem->neighbor(side);
-                if (at_mesh_bdry)
-                {
-                    BoundaryInfo* boundary_info = lower_mesh.boundary_info.get();
-                    if (boundary_info->has_boundary_id(elem,side,1) || boundary_id == boundary_info->has_boundary_id(elem,side,3))
-                    {
-                        boundary_info->add_side(elem, side, FEDataManager::ZERO_DISPLACEMENT_XY_BDRY_ID);
-                    }
-                }
-            }
-        }
-#endif
+
         Mesh upper_mesh(init.comm(), NDIM);
         MeshTools::Generation::build_square(upper_mesh,
                                             static_cast<int>(ceil(L / ds)),
@@ -240,25 +234,7 @@ bool run_example(int argc, char* argv[])
                                             2.0 * D + 0.5 * w,
                                             Utility::string_to_enum<ElemType>(elem_type));
         upper_mesh.prepare_for_use();
-#if 0
-        el_end = upper_mesh.elements_end();
-        for (MeshBase::const_element_iterator el = upper_mesh.elements_begin(); el != el_end; ++el)
-        {
-            Elem* const elem = *el;
-            for (unsigned int side = 0; side < elem->n_sides(); ++side)
-            {
-                const bool at_mesh_bdry = !elem->neighbor(side);
-                if (at_mesh_bdry)
-                {
-                    BoundaryInfo* boundary_info = upper_mesh.boundary_info.get();
-                    if (boundary_info->has_boundary_id(elem,side,1) || boundary_id == boundary_info->has_boundary_id(elem,side,3))
-                    {
-                        boundary_info->add_side(elem, side, FEDataManager::ZERO_DISPLACEMENT_XY_BDRY_ID);
-                    }
-                }
-            }
-        }
-#endif
+
         vector<Mesh*> meshes(2);
         meshes[0] = &lower_mesh;
         meshes[1] = &upper_mesh;
@@ -325,6 +301,7 @@ bool run_example(int argc, char* argv[])
         ib_method_ops->registerLagBodyForceFunction(upper_tether_force_data, 1);
         ib_method_ops->registerPK1StressFunction(upper_PK1_stress_data, 1);
 
+        ib_method_ops->initializeFEEquationSystems();
         EquationSystems* lower_equation_systems = ib_method_ops->getFEDataManager(0)->getEquationSystems();
         EquationSystems* upper_equation_systems = ib_method_ops->getFEDataManager(1)->getEquationSystems();
 
@@ -375,8 +352,8 @@ bool run_example(int argc, char* argv[])
         {
             time_integrator->registerVisItDataWriter(visit_data_writer);
         }
-        AutoPtr<ExodusII_IO> lower_exodus_io(uses_exodus ? new ExodusII_IO(lower_mesh) : NULL);
-        AutoPtr<ExodusII_IO> upper_exodus_io(uses_exodus ? new ExodusII_IO(upper_mesh) : NULL);
+        libMesh::UniquePtr<ExodusII_IO> lower_exodus_io(uses_exodus ? new ExodusII_IO(lower_mesh) : NULL);
+        libMesh::UniquePtr<ExodusII_IO> upper_exodus_io(uses_exodus ? new ExodusII_IO(upper_mesh) : NULL);
 
         // Initialize hierarchy configuration and data on all patches.
         ib_method_ops->initializeFEData();

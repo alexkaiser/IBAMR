@@ -1,7 +1,7 @@
 // Filename: PETScVecUtilities.cpp
 // Created on 23 Aug 2010 by Boyce Griffith
 //
-// Copyright (c) 2002-2014, Boyce Griffith
+// Copyright (c) 2002-2017, Boyce Griffith
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -696,6 +696,8 @@ PETScVecUtilities::constructPatchLevelAO_cell(AO& ao,
                 const int dof_idx = (*dof_index_data)(i, d);
 #if !defined(NDEBUG)
                 TBOX_ASSERT(dof_idx >= i_lower && dof_idx < i_upper);
+#else
+                NULL_USE(i_upper);
 #endif
                 petsc_idxs[counter] = dof_idx;
                 samrai_idxs[counter] =

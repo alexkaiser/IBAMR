@@ -73,7 +73,8 @@ block_tether_force_function(VectorValue<double>& F,
                             const libMesh::Point& X,
                             const libMesh::Point& s,
                             Elem* const /*elem*/,
-                            const vector<NumericVector<double>*>& /*system_data*/,
+                            const vector<const vector<double>*>& /*var_data*/,
+                            const vector<const vector<VectorValue<double> >*>& /*grad_var_data*/,
                             double /*time*/,
                             void* /*ctx*/)
 {
@@ -85,12 +86,15 @@ block_tether_force_function(VectorValue<double>& F,
 static double beam_kappa_s = 1.0e6;
 void
 beam_tether_force_function(VectorValue<double>& F,
+                           const VectorValue<double>& /*n*/,
+                           const VectorValue<double>& /*N*/,
                            const TensorValue<double>& /*FF*/,
                            const libMesh::Point& X,
                            const libMesh::Point& s,
                            Elem* const /*elem*/,
                            const unsigned short int side,
-                           const vector<NumericVector<double>*>& /*system_data*/,
+                           const vector<const vector<double>*>& /*var_data*/,
+                           const vector<const vector<VectorValue<double> >*>& /*grad_var_data*/,
                            double /*time*/,
                            void* /*ctx*/)
 {
@@ -113,7 +117,8 @@ beam_PK1_dev_stress_function(TensorValue<double>& PP,
                              const libMesh::Point& /*X*/,
                              const libMesh::Point& /*s*/,
                              Elem* const /*elem*/,
-                             const vector<NumericVector<double>*>& /*system_data*/,
+                             const vector<const vector<double>*>& /*var_data*/,
+                             const vector<const vector<VectorValue<double> >*>& /*grad_var_data*/,
                              double /*time*/,
                              void* /*ctx*/)
 {
@@ -129,7 +134,8 @@ beam_PK1_dil_stress_function(TensorValue<double>& PP,
                              const libMesh::Point& /*X*/,
                              const libMesh::Point& /*s*/,
                              Elem* const /*elem*/,
-                             const vector<NumericVector<double>*>& /*system_data*/,
+                             const vector<const vector<double>*>& /*var_data*/,
+                             const vector<const vector<VectorValue<double> >*>& /*grad_var_data*/,
                              double /*time*/,
                              void* /*ctx*/)
 {
@@ -160,7 +166,7 @@ compute_deformed_length(node_set& nodes, EquationSystems* equation_systems)
     System& X_system = equation_systems->get_system<System>(IBFEMethod::COORDS_SYSTEM_NAME);
     const unsigned int X_sys_num = X_system.number();
     NumericVector<double>* X_vec = X_system.solution.get();
-    AutoPtr<NumericVector<Number> > X_serial_vec = NumericVector<Number>::build(X_vec->comm());
+    libMesh::UniquePtr<NumericVector<Number> > X_serial_vec = NumericVector<Number>::build(X_vec->comm());
     X_serial_vec->init(X_vec->size(), true, SERIAL);
     X_vec->localize(*X_serial_vec);
 
@@ -205,7 +211,7 @@ compute_displaced_area(node_set& nodes, EquationSystems* equation_systems)
     System& X_system = equation_systems->get_system<System>(IBFEMethod::COORDS_SYSTEM_NAME);
     const unsigned int X_sys_num = X_system.number();
     NumericVector<double>* X_vec = X_system.solution.get();
-    AutoPtr<NumericVector<Number> > X_serial_vec = NumericVector<Number>::build(X_vec->comm());
+    libMesh::UniquePtr<NumericVector<Number> > X_serial_vec = NumericVector<Number>::build(X_vec->comm());
     X_serial_vec->init(X_vec->size(), true, SERIAL);
     X_vec->localize(*X_serial_vec);
 
@@ -274,7 +280,7 @@ compute_inflow_flux(const Pointer<PatchHierarchy<NDIM> > hierarchy, const int U_
                     side_box.upper(axis) = patch_box.lower(axis);
                     for (Box<NDIM>::Iterator b(side_box); b; b++)
                     {
-                        const Index<NDIM>& i = b();
+                        const hier::Index<NDIM>& i = b();
                         for (int d = 0; d < NDIM; ++d)
                         {
                             X[d] = x_lower[d] + dx[d] * (double(i(d) - patch_box.lower(d)) + (d == axis ? 0.0 : 0.5));
@@ -337,7 +343,16 @@ bool run_example(int argc, char** argv)
         const bool dump_viz_data = app_initializer->dumpVizData();
         const int viz_dump_interval = app_initializer->getVizDumpInterval();
         const bool uses_visit = dump_viz_data && app_initializer->getVisItDataWriter();
+#ifdef LIBMESH_HAVE_EXODUS_API
         const bool uses_exodus = dump_viz_data && !app_initializer->getExodusIIFilename().empty();
+#else
+        const bool uses_exodus = false;
+        if (!app_initializer->getExodusIIFilename().empty())
+        {
+            plog << "WARNING: libMesh was compiled without Exodus support, so no "
+                 << "Exodus output will be written in this program.\n";
+        }
+#endif
         const string block1_exodus_filename = app_initializer->getExodusIIFilename("block1");
         const string block2_exodus_filename = app_initializer->getExodusIIFilename("block2");
         const string beam_exodus_filename = app_initializer->getExodusIIFilename("beam");
@@ -502,6 +517,7 @@ bool run_example(int argc, char** argv)
         ib_method_ops->registerPK1StressFunction(beam_PK1_dev_stress_data, 2);
         ib_method_ops->registerPK1StressFunction(beam_PK1_dil_stress_data, 2);
 
+        ib_method_ops->initializeFEEquationSystems();
         EquationSystems* block1_equation_systems = ib_method_ops->getFEDataManager(0)->getEquationSystems();
         EquationSystems* block2_equation_systems = ib_method_ops->getFEDataManager(1)->getEquationSystems();
         EquationSystems* beam_equation_systems = ib_method_ops->getFEDataManager(2)->getEquationSystems();
@@ -563,9 +579,9 @@ bool run_example(int argc, char** argv)
         {
             time_integrator->registerVisItDataWriter(visit_data_writer);
         }
-        AutoPtr<ExodusII_IO> block1_exodus_io(uses_exodus ? new ExodusII_IO(block1_mesh) : NULL);
-        AutoPtr<ExodusII_IO> block2_exodus_io(uses_exodus ? new ExodusII_IO(block2_mesh) : NULL);
-        AutoPtr<ExodusII_IO> beam_exodus_io(uses_exodus ? new ExodusII_IO(beam_mesh) : NULL);
+        libMesh::UniquePtr<ExodusII_IO> block1_exodus_io(uses_exodus ? new ExodusII_IO(block1_mesh) : NULL);
+        libMesh::UniquePtr<ExodusII_IO> block2_exodus_io(uses_exodus ? new ExodusII_IO(block2_mesh) : NULL);
+        libMesh::UniquePtr<ExodusII_IO> beam_exodus_io(uses_exodus ? new ExodusII_IO(beam_mesh) : NULL);
 
         // Initialize hierarchy configuration and data on all patches.
         ib_method_ops->initializeFEData();

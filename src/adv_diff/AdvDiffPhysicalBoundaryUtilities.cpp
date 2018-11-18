@@ -1,7 +1,7 @@
 // Filename: AdvDiffPhysicalBoundaryUtilities.cpp
 // Created on 24 Aug 2012 by Boyce Griffith
 //
-// Copyright (c) 2002-2014, Boyce Griffith
+// Copyright (c) 2002-2017, Boyce Griffith
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -118,6 +118,8 @@ AdvDiffPhysicalBoundaryUtilities::setPhysicalBoundaryConditions(Pointer<CellData
         Pointer<ArrayData<NDIM, double> > gcoef_data = new ArrayData<NDIM, double>(bc_coef_box, 1);
         for (int depth = 0; depth < Q_data->getDepth(); ++depth)
         {
+            if (bc_coefs[depth] == NULL) continue;
+
             bc_coefs[depth]->setBcCoefs(acoef_data, bcoef_data, gcoef_data, NULL, *patch, trimmed_bdry_box, fill_time);
             ExtendedRobinBcCoefStrategy* extended_bc_coef = dynamic_cast<ExtendedRobinBcCoefStrategy*>(bc_coefs[depth]);
             if (homogeneous_bc && !extended_bc_coef) gcoef_data->fillAll(0.0);

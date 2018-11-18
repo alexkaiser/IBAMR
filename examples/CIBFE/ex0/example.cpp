@@ -202,7 +202,16 @@ run_example(int argc, char* argv[])
         const bool dump_viz_data = app_initializer->dumpVizData();
         const int viz_dump_interval = app_initializer->getVizDumpInterval();
         const bool uses_visit = dump_viz_data && app_initializer->getVisItDataWriter();
+#ifdef LIBMESH_HAVE_EXODUS_API
         const bool uses_exodus = dump_viz_data && !app_initializer->getExodusIIFilename().empty();
+#else
+        const bool uses_exodus = false;
+        if (!app_initializer->getExodusIIFilename().empty())
+        {
+            plog << "WARNING: libMesh was compiled without Exodus support, so no "
+                 << "Exodus output will be written in this program.\n";
+        }
+#endif
         const string exodus_filename = app_initializer->getExodusIIFilename();
 
         const bool dump_restart_data = app_initializer->dumpRestartData();
@@ -344,7 +353,7 @@ run_example(int argc, char* argv[])
         {
             time_integrator->registerVisItDataWriter(visit_data_writer);
         }
-        AutoPtr<ExodusII_IO> exodus_io(uses_exodus ? new ExodusII_IO(mesh) : NULL);
+        libMesh::UniquePtr<ExodusII_IO> exodus_io(uses_exodus ? new ExodusII_IO(mesh) : NULL);
 
         // Initialize hierarchy configuration and data on all patches.
         ib_method_ops->initializeFEData();
@@ -460,8 +469,8 @@ run_example(int argc, char* argv[])
             X_vec->localize(*X_ghost_vec);
             DofMap& X_dof_map = X_system.get_dof_map();
             std::vector<std::vector<unsigned int> > X_dof_indices(NDIM);
-            AutoPtr<FEBase> fe(FEBase::build(1, X_dof_map.variable_type(0)));
-            AutoPtr<QBase> qrule = QBase::build(QGAUSS, 1, THIRD);
+            libMesh::UniquePtr<FEBase> fe(FEBase::build(1, X_dof_map.variable_type(0)));
+            libMesh::UniquePtr<QBase> qrule = QBase::build(QGAUSS, 1, THIRD);
             fe->attach_quadrature_rule(qrule.get());
             const std::vector<double>& JxW = fe->get_JxW();
             const std::vector<std::vector<VectorValue<double> > >& dphi = fe->get_dphi();

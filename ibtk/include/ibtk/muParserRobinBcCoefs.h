@@ -1,7 +1,7 @@
 // Filename: muParserRobinBcCoefs.h
 // Created on 25 Aug 2007 by Boyce Griffith
 //
-// Copyright (c) 2002-2014, Boyce Griffith
+// Copyright (c) 2002-2017, Boyce Griffith
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -93,11 +93,6 @@ public:
                          SAMRAI::tbox::Pointer<SAMRAI::geom::CartesianGridGeometry<NDIM> > grid_geom);
 
     /*!
-     * \brief Destructor.
-     */
-    ~muParserRobinBcCoefs();
-
-    /*!
      * \name Implementation of SAMRAI::solv::RobinBcCoefStrategy interface.
      */
     //\{
@@ -186,6 +181,27 @@ private:
     muParserRobinBcCoefs& operator=(const muParserRobinBcCoefs& that);
 
     /*!
+     * Current time value used by the mu::Parser instances.
+     *
+     * This value is mutable since the mu::Parser objects each store a pointer
+     * to it but its specific value (the present time) changes during each
+     * call to muParserRobinBcCoefs::setBcCoefs. The alternative would be to
+     * rebuild the mu::Parser objects during each call to
+     * muParserRobinBcCoefs::setBcCoefs, which is much more expensive. Since
+     * this variable is only written to and subsequently read from in that
+     * function this is reasonable.
+     */
+    mutable double d_parser_time;
+
+    /*!
+     * Current space point used by the mu::Parser instances.
+     *
+     * This value is mutable for the same reasons that
+     * muParserRobinBcCoefs::d_parser_time is mutable.
+     */
+    mutable Point d_parser_posn;
+
+    /*!
      * The Cartesian grid geometry object provides the extents of the
      * computational domain.
      */
@@ -210,12 +226,6 @@ private:
     std::vector<mu::Parser> d_acoef_parsers;
     std::vector<mu::Parser> d_bcoef_parsers;
     std::vector<mu::Parser> d_gcoef_parsers;
-
-    /*!
-     * Time and position variables.
-     */
-    double* d_parser_time;
-    Point* d_parser_posn;
 };
 } // namespace IBTK
 

@@ -1,7 +1,7 @@
 // Filename: ibamr_enums.h
 // Created on 03 Mar 2011 by Boyce Griffith
 //
-// Copyright (c) 2002-2014, Boyce Griffith
+// Copyright (c) 2002-2017, Boyce Griffith
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -112,6 +112,10 @@ enum LimiterType
     FOURTH_ORDER = 7,
     PPM = 8,
     XSPPM7 = 9,
+    UPWIND = 10,
+    CUI = 11,
+    FBICS = 12,
+    MGAMMA = 13,
     UNKNOWN_LIMITER_TYPE = -1
 };
 
@@ -132,6 +136,10 @@ string_to_enum<LimiterType>(const std::string& val)
     if (strcasecmp(val.c_str(), "FOURTH_ORDER") == 0) return FOURTH_ORDER;
     if (strcasecmp(val.c_str(), "PPM") == 0) return PPM;
     if (strcasecmp(val.c_str(), "XSPPM7") == 0) return XSPPM7;
+    if (strcasecmp(val.c_str(), "UPWIND") == 0) return UPWIND;
+    if (strcasecmp(val.c_str(), "CUI") == 0) return CUI;
+    if (strcasecmp(val.c_str(), "FBICS") == 0) return FBICS;
+    if (strcasecmp(val.c_str(), "MGAMMA") == 0) return MGAMMA;
     return UNKNOWN_LIMITER_TYPE;
 } // string_to_enum
 
@@ -148,7 +156,76 @@ enum_to_string<LimiterType>(LimiterType val)
     if (val == FOURTH_ORDER) return "FOURTH_ORDER";
     if (val == PPM) return "PPM";
     if (val == XSPPM7) return "XSPPM7";
+    if (val == UPWIND) return "UPWIND";
+    if (val == CUI) return "CUI";
+    if (val == FBICS) return "FBICS";
+    if (val == MGAMMA) return "MGAMMA";
     return "UNKNOWN_LIMITER_TYPE";
+} // enum_to_string
+
+/*!
+ * \brief Enumerated type for different level set methods
+ */
+enum LevelSetType
+{
+    FAST_SWEEPING = 1,
+    RELAXATION = 2,
+    UNKNOWN_LEVEL_SET_TYPE = -1
+};
+
+template <>
+inline LevelSetType
+string_to_enum<LevelSetType>(const std::string& val)
+{
+    if (strcasecmp(val.c_str(), "FAST_SWEEPING") == 0) return FAST_SWEEPING;
+    if (strcasecmp(val.c_str(), "RELAXATION") == 0) return RELAXATION;
+    return UNKNOWN_LEVEL_SET_TYPE;
+} // string_to_enum
+
+template <>
+inline std::string
+enum_to_string<LevelSetType>(LevelSetType val)
+{
+    if (val == FAST_SWEEPING) return "FAST_SWEEPING";
+    if (val == RELAXATION) return "RELAXATION";
+    return "UNKNOWN_LEVEL_SET_TYPE";
+} // enum_to_string
+
+/*!
+ * \brief Enumerated type for different level set order
+ */
+enum LevelSetOrder
+{
+    FIRST_ORDER_LS = 1,
+    SECOND_ORDER_LS = 2,
+    THIRD_ORDER_ENO_LS = 3,
+    THIRD_ORDER_WENO_LS = 4,
+    FIFTH_ORDER_WENO_LS = 5,
+    UNKNOWN_LEVEL_SET_ORDER = -1
+};
+
+template <>
+inline LevelSetOrder
+string_to_enum<LevelSetOrder>(const std::string& val)
+{
+    if (strcasecmp(val.c_str(), "FIRST_ORDER") == 0) return FIRST_ORDER_LS;
+    if (strcasecmp(val.c_str(), "SECOND_ORDER") == 0) return SECOND_ORDER_LS;
+    if (strcasecmp(val.c_str(), "THIRD_ORDER_ENO") == 0) return THIRD_ORDER_ENO_LS;
+    if (strcasecmp(val.c_str(), "THIRD_ORDER_WENO") == 0) return THIRD_ORDER_WENO_LS;
+    if (strcasecmp(val.c_str(), "FIFTH_ORDER_WENO") == 0) return FIFTH_ORDER_WENO_LS;
+    return UNKNOWN_LEVEL_SET_ORDER;
+} // string_to_enum
+
+template <>
+inline std::string
+enum_to_string<LevelSetOrder>(LevelSetOrder val)
+{
+    if (val == FIRST_ORDER_LS) return "FIRST_ORDER";
+    if (val == SECOND_ORDER_LS) return "SECOND_ORDER";
+    if (val == THIRD_ORDER_ENO_LS) return "THIRD_ORDER_ENO";
+    if (val == THIRD_ORDER_WENO_LS) return "THIRD_ORDER_WENO";
+    if (val == FIFTH_ORDER_WENO_LS) return "FIFTH_ORDER_WENO";
+    return "UNKNOWN_LEVEL_SET_ORDER";
 } // enum_to_string
 
 /*!
@@ -161,6 +238,8 @@ enum TimeSteppingType
     FORWARD_EULER,
     MIDPOINT_RULE,
     TRAPEZOIDAL_RULE,
+    SSPRK2,
+    SSPRK3,
     UNKNOWN_TIME_STEPPING_TYPE = -1
 };
 
@@ -174,6 +253,9 @@ string_to_enum<TimeSteppingType>(const std::string& val)
     if (strcasecmp(val.c_str(), "MIDPOINT_RULE") == 0) return MIDPOINT_RULE;
     if (strcasecmp(val.c_str(), "TRAPEZOIDAL_RULE") == 0) return TRAPEZOIDAL_RULE;
     if (strcasecmp(val.c_str(), "CRANK_NICOLSON") == 0) return TRAPEZOIDAL_RULE;
+    if (strcasecmp(val.c_str(), "SSPRK1") == 0) return FORWARD_EULER;
+    if (strcasecmp(val.c_str(), "SSPRK2") == 0) return SSPRK2;
+    if (strcasecmp(val.c_str(), "SSPRK3") == 0) return SSPRK3;
     return UNKNOWN_TIME_STEPPING_TYPE;
 } // string_to_enum
 
@@ -186,6 +268,8 @@ enum_to_string<TimeSteppingType>(TimeSteppingType val)
     if (val == FORWARD_EULER) return "FORWARD_EULER";
     if (val == MIDPOINT_RULE) return "MIDPOINT_RULE";
     if (val == TRAPEZOIDAL_RULE) return "TRAPEZOIDAL_RULE";
+    if (val == SSPRK2) return "SSPRK2";
+    if (val == SSPRK3) return "SSPRK3";
     return "UNKNOWN_TIME_STEPPING_TYPE";
 } // enum_to_string
 

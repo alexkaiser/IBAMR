@@ -1,7 +1,7 @@
 // Filename: IBExplicitHierarchyIntegrator.cpp
 // Created on 12 Jul 2004 by Boyce Griffith
 //
-// Copyright (c) 2002-2014, Boyce Griffith
+// Copyright (c) 2002-2017, Boyce Griffith
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -286,7 +286,10 @@ IBExplicitHierarchyIntegrator::integrateHierarchy(const double current_time, con
             plog << d_object_name << "::integrateHierarchy(): spreading Lagrangian fluid source "
                                      "strength to the Eulerian grid\n";
         d_hier_pressure_data_ops->setToScalar(d_q_idx, 0.0);
-        d_ib_method_ops->spreadFluidSource(d_q_idx, getProlongRefineSchedules(d_object_name + "::q"), half_time);
+        // NOTE: This does not correctly treat the case in which the structure
+        // is close to the physical boundary.
+        d_ib_method_ops->spreadFluidSource(
+            d_q_idx, NULL, getProlongRefineSchedules(d_object_name + "::q"), half_time);
     }
 
     // Solve the incompressible Navier-Stokes equations.
@@ -504,8 +507,6 @@ IBExplicitHierarchyIntegrator::postprocessIntegrateHierarchy(const double curren
             level->deallocatePatchData(d_p_idx);
             level->deallocatePatchData(d_q_idx);
         }
-        level->deallocatePatchData(d_scratch_data);
-        level->deallocatePatchData(d_new_data);
     }
 
     // Execute any registered callbacks.

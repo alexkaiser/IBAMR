@@ -1,7 +1,7 @@
 // Filename: IBHierarchyIntegrator.h
 // Created on 12 Jul 2004 by Boyce Griffith
 //
-// Copyright (c) 2002-2014, Boyce Griffith
+// Copyright (c) 2002-2017, Boyce Griffith
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -211,6 +211,12 @@ protected:
      * step.
      */
     bool atRegridPointSpecialized() const;
+
+    /*!
+     * Initialize data after the entire hierarchy has been constructed.
+     *
+     */
+    void initializeCompositeHierarchyDataSpecialized(double init_data_time, bool initial_time);
 
     /*!
      * Initialize data on a new level after it is inserted into an AMR patch

@@ -1,7 +1,7 @@
 // Filename: StaggeredStokesLevelRelaxationFACOperator.cpp
 // Created on 16 Mar 2015 by Amneet Bhalla
 //
-// Copyright (c) 2002-2015, Amneet Bhalla and Boyce Griffith
+// Copyright (c) 2002-2017, Amneet Bhalla and Boyce Griffith
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -300,7 +300,7 @@ StaggeredStokesLevelRelaxationFACOperator::initializeOperatorStateSpecialized(
 {
     // Initialize the fine level solvers when needed.
     d_level_solvers.resize(d_finest_ln + 1);
-    for (int ln = std::max(1, coarsest_reset_ln); ln <= finest_reset_ln; ++ln)
+    for (int ln = std::max(0, coarsest_reset_ln); ln <= finest_reset_ln; ++ln)
     {
         Pointer<StaggeredStokesSolver>& level_solver = d_level_solvers[ln];
         if (!level_solver)

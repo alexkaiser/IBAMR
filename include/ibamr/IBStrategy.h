@@ -1,7 +1,7 @@
 // Filename: IBStrategy.h
 // Created on 21 Sep 2011 by Boyce Griffith
 //
-// Copyright (c) 2002-2014, Boyce Griffith
+// Copyright (c) 2002-2017, Boyce Griffith
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -279,6 +279,7 @@ public:
      */
     virtual void spreadFluidSource(
         int q_data_idx,
+        IBTK::RobinPhysBdryPatchStrategy* q_phys_bdry_op,
         const std::vector<SAMRAI::tbox::Pointer<SAMRAI::xfer::RefineSchedule<NDIM> > >& q_prolongation_scheds,
         double data_time);
 

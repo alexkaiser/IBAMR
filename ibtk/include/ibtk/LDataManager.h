@@ -1,7 +1,7 @@
 // Filename: LDataManager.h
 // Created on 01 Mar 2004 by Boyce Griffith
 //
-// Copyright (c) 2002-2014, Boyce Griffith
+// Copyright (c) 2002-2017, Boyce Griffith
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -484,6 +484,9 @@ public:
     /*!
      * Register a concrete strategy object with the integrator that specifies
      * the initial configuration of the curvilinear mesh nodes.
+     *
+     * \note This function calls LInitStrategy::init(). All preprocessing should be completed before
+     * registering a LInitStrategy object.
      */
     void registerLInitStrategy(SAMRAI::tbox::Pointer<LInitStrategy> lag_init);
 
@@ -918,6 +921,13 @@ public:
     void free_movement_info();    
     
 
+    /*!
+     * Register user defined Lagrangian data to be maintained
+     *
+     */
+    void registerUserDefinedLData(const std::string& data_name,
+                                  int depth);
+
 protected:
     /*!
      * \brief Constructor.
@@ -1234,6 +1244,11 @@ private:
      * PETSc ordering corresponding to a depth of 1.
      */
     std::vector<std::vector<int> > d_nonlocal_petsc_indices;
+
+    /*!
+     * Container for additional user defined Lagrangian data
+     */
+    std::map<std::string, int> d_user_defined_ldata;
 
     //\}
         

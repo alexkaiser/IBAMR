@@ -1,7 +1,7 @@
 // Filename: CIBFEMethod.h
 // Created on 14 Oct 2014 by Amneet Bhalla
 //
-// Copyright (c) 2002-2014, Amneet Bhalla and Boyce Griffith
+// Copyright (c) 2002-2017, Amneet Bhalla and Boyce Griffith
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -122,7 +122,7 @@ public:
      * Typedef specifying interface for specifying constrained body velocities.
      */
     typedef void (*ConstrainedNodalVelocityFcnPtr)(libMesh::NumericVector<double>& U_k,
-                                                   const RigidDOFVector& U,
+    const IBTK::RigidDOFVector& U,
                                                    libMesh::NumericVector<double>& X,
                                                    const Eigen::Vector3d& X_com,
                                                    libMesh::EquationSystems* equation_systems,
@@ -320,7 +320,7 @@ public:
     /*!
      * \brief Compute total force and torque on the rigid structure(s).
      */
-    virtual void computeNetRigidGeneralizedForce(const unsigned int part, Vec L, RigidDOFVector& F);
+    virtual void computeNetRigidGeneralizedForce(const unsigned int part, Vec L, IBTK::RigidDOFVector& F);
 
     // \see CIBStrategy::copyVecToArray() method.
     /*!
@@ -348,7 +348,7 @@ public:
      * contained in the Vec V.
      *
      */
-    virtual void setRigidBodyVelocity(const unsigned int part, const RigidDOFVector& U, Vec V);
+    virtual void setRigidBodyVelocity(const unsigned int part, const IBTK::RigidDOFVector& U, Vec V);
 
     // \}
 
@@ -361,13 +361,13 @@ public:
     /*!
      * \brief Register Eulerian variables with the parent IBHierarchyIntegrator.
      */
-    virtual void registerEulerianVariables();
+    void registerEulerianVariables();
 
     /*!
      * \brief Register Eulerian refinement or coarsening algorithms with the parent
      * IBHierarchyIntegrator.
      */
-    virtual void registerEulerianCommunicationAlgorithms();
+    void registerEulerianCommunicationAlgorithms();
 
     /*!
      * Initialize Lagrangian data corresponding to the given AMR patch hierarchy

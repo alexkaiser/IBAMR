@@ -51,6 +51,7 @@
 // Headers for application-specific algorithm/data structure objects
 #include <boost/multi_array.hpp>
 #include <ibamr/IBExplicitHierarchyIntegrator.h>
+#include <ibamr/IBFECentroidPostProcessor.h>
 #include <ibamr/IBFEMethod.h>
 #include <ibamr/INSCollocatedHierarchyIntegrator.h>
 #include <ibamr/INSStaggeredHierarchyIntegrator.h>
@@ -88,7 +89,8 @@ PK1_stress_function(TensorValue<double>& PP,
                     const libMesh::Point& /*X*/,
                     const libMesh::Point& /*s*/,
                     Elem* const /*elem*/,
-                    const std::vector<NumericVector<double>*>& /*system_data*/,
+                    const std::vector<const std::vector<double>*>& /*var_data*/,
+                    const std::vector<const std::vector<VectorValue<double> >*>& /*grad_var_data*/,
                     double /*time*/,
                     void* /*ctx*/)
 {
@@ -148,7 +150,16 @@ bool run_example(int argc, char** argv, std::vector<double>& u_err, std::vector<
         const bool dump_viz_data = app_initializer->dumpVizData();
         const int viz_dump_interval = app_initializer->getVizDumpInterval();
         const bool uses_visit = dump_viz_data && app_initializer->getVisItDataWriter();
+#ifdef LIBMESH_HAVE_EXODUS_API
         const bool uses_exodus = dump_viz_data && !app_initializer->getExodusIIFilename().empty();
+#else
+        const bool uses_exodus = false;
+        if (!app_initializer->getExodusIIFilename().empty())
+        {
+            plog << "WARNING: libMesh was compiled without Exodus support, so no "
+                 << "Exodus output will be written in this program.\n";
+        }
+#endif
         const string exodus_filename = app_initializer->getExodusIIFilename();
 
         const bool dump_restart_data = app_initializer->dumpRestartData();
@@ -243,9 +254,37 @@ bool run_example(int argc, char** argv, std::vector<double>& u_err, std::vector<
                                         load_balancer);
 
         // Configure the IBFE solver.
+        ib_method_ops->initializeFEEquationSystems();
         FEDataManager* fe_data_manager = ib_method_ops->getFEDataManager();
         ib_method_ops->registerInitialCoordinateMappingFunction(coordinate_mapping_function);
         ib_method_ops->registerPK1StressFunction(PK1_stress_function);
+        if (input_db->getBoolWithDefault("ELIMINATE_PRESSURE_JUMPS", false))
+        {
+            ib_method_ops->registerStressNormalizationPart();
+        }
+
+        // Set up post processor to recover computed stresses.
+        Pointer<IBFEPostProcessor> ib_post_processor =
+            new IBFECentroidPostProcessor("IBFEPostProcessor", fe_data_manager);
+        {
+            Pointer<hier::Variable<NDIM> > p_var = navier_stokes_integrator->getPressureVariable();
+            Pointer<VariableContext> p_current_ctx = navier_stokes_integrator->getCurrentContext();
+            HierarchyGhostCellInterpolation::InterpolationTransactionComponent p_ghostfill(
+                /*data_idx*/ -1,
+                "LINEAR_REFINE",
+                /*use_cf_bdry_interpolation*/ false,
+                "CONSERVATIVE_COARSEN",
+                "LINEAR");
+            FEDataManager::InterpSpec p_interp_spec("PIECEWISE_LINEAR",
+                                                    QGAUSS,
+                                                    FIFTH,
+                                                    /*use_adaptive_quadrature*/ false,
+                                                    /*point_density*/ 2.0,
+                                                    /*use_consistent_mass_matrix*/ true,
+                                                    /*use_nodal_quadrature*/ false);
+            ib_post_processor->registerInterpolatedScalarEulerianVariable(
+                "p_f", LAGRANGE, FIRST, p_var, p_current_ctx, p_ghostfill, p_interp_spec);
+        }
 
         // Create Eulerian initial condition specification objects.  These
         // objects also are used to specify exact solution values for error
@@ -300,7 +339,7 @@ bool run_example(int argc, char** argv, std::vector<double>& u_err, std::vector<
         {
             time_integrator->registerVisItDataWriter(visit_data_writer);
         }
-        AutoPtr<ExodusII_IO> exodus_io(uses_exodus ? new ExodusII_IO(mesh) : NULL);
+        libMesh::UniquePtr<ExodusII_IO> exodus_io(uses_exodus ? new ExodusII_IO(mesh) : NULL);
 
         // Initialize hierarchy configuration and data on all patches.
         EquationSystems* equation_systems = fe_data_manager->getEquationSystems();
@@ -310,6 +349,7 @@ bool run_example(int argc, char** argv, std::vector<double>& u_err, std::vector<
             system.get_dof_map().add_periodic_boundary(pbc);
         }
         ib_method_ops->initializeFEData();
+        if (ib_post_processor) ib_post_processor->initializeFEData();
         time_integrator->initializePatchHierarchy(patch_hierarchy, gridding_algorithm);
 
         // Deallocate initialization objects.
@@ -320,11 +360,10 @@ bool run_example(int argc, char** argv, std::vector<double>& u_err, std::vector<
         input_db->printClassData(plog);
 
         // Setup data used to determine the accuracy of the computed solution.
-        VariableDatabase<NDIM>* var_db = VariableDatabase<NDIM>::getDatabase();
-
         const Pointer<hier::Variable<NDIM> > u_var = navier_stokes_integrator->getVelocityVariable();
         const Pointer<VariableContext> u_ctx = navier_stokes_integrator->getCurrentContext();
 
+        VariableDatabase<NDIM>* var_db = VariableDatabase<NDIM>::getDatabase();
         const int u_idx = var_db->mapVariableAndContextToIndex(u_var, u_ctx);
         const int u_cloned_idx = var_db->registerClonedPatchDataIndex(u_var, u_idx);
 
@@ -356,6 +395,7 @@ bool run_example(int argc, char** argv, std::vector<double>& u_err, std::vector<
             }
             if (uses_exodus)
             {
+                if (ib_post_processor) ib_post_processor->postProcessData(loop_time);
                 exodus_io->write_timestep(
                     exodus_filename, *equation_systems, iteration_num / viz_dump_interval + 1, loop_time);
             }
@@ -406,6 +446,7 @@ bool run_example(int argc, char** argv, std::vector<double>& u_err, std::vector<
                 }
                 if (uses_exodus)
                 {
+                    if (ib_post_processor) ib_post_processor->postProcessData(loop_time);
                     exodus_io->write_timestep(
                         exodus_filename, *equation_systems, iteration_num / viz_dump_interval + 1, loop_time);
                 }
@@ -466,7 +507,7 @@ bool run_example(int argc, char** argv, std::vector<double>& u_err, std::vector<
                      << std::setprecision(10) << hier_cc_data_ops.L1Norm(u_cloned_idx, wgt_cc_idx) << "\n"
                      << "  L2-norm:  " << hier_cc_data_ops.L2Norm(u_cloned_idx, wgt_cc_idx) << "\n"
                      << "  max-norm: " << hier_cc_data_ops.maxNorm(u_cloned_idx, wgt_cc_idx) << "\n";
-                     
+
                      u_err[0] = hier_cc_data_ops.L1Norm(u_cloned_idx, wgt_cc_idx);
                      u_err[1] = hier_cc_data_ops.L2Norm(u_cloned_idx, wgt_cc_idx);
                      u_err[2] = hier_cc_data_ops.maxNorm(u_cloned_idx, wgt_cc_idx);
@@ -478,14 +519,14 @@ bool run_example(int argc, char** argv, std::vector<double>& u_err, std::vector<
                 HierarchySideDataOpsReal<NDIM, double> hier_sc_data_ops(patch_hierarchy, coarsest_ln, finest_ln);
                 hier_sc_data_ops.subtract(u_cloned_idx, u_idx, u_cloned_idx);
                 pout << "Error in u at time " << loop_time << ":\n"
-                     << "  L1-norm:  " 
-                     << std::setprecision(10) << hier_sc_data_ops.L1Norm(u_cloned_idx, wgt_sc_idx) << "\n"
+                     << "  L1-norm:  " << std::setprecision(10) << hier_sc_data_ops.L1Norm(u_cloned_idx, wgt_sc_idx)
+                     << "\n"
                      << "  L2-norm:  " << hier_sc_data_ops.L2Norm(u_cloned_idx, wgt_sc_idx) << "\n"
                      << "  max-norm: " << hier_sc_data_ops.maxNorm(u_cloned_idx, wgt_sc_idx) << "\n";
-                     
-                     u_err[0] = hier_sc_data_ops.L1Norm(u_cloned_idx, wgt_sc_idx);
-                     u_err[1] = hier_sc_data_ops.L2Norm(u_cloned_idx, wgt_sc_idx);
-                     u_err[2] = hier_sc_data_ops.maxNorm(u_cloned_idx, wgt_sc_idx);
+
+                u_err[0] = hier_sc_data_ops.L1Norm(u_cloned_idx, wgt_sc_idx);
+                u_err[1] = hier_sc_data_ops.L2Norm(u_cloned_idx, wgt_sc_idx);
+                u_err[2] = hier_sc_data_ops.maxNorm(u_cloned_idx, wgt_sc_idx);
             }
 
             HierarchyCellDataOpsReal<NDIM, double> hier_cc_data_ops(patch_hierarchy, coarsest_ln, finest_ln);
@@ -495,15 +536,14 @@ bool run_example(int argc, char** argv, std::vector<double>& u_err, std::vector<
             hier_cc_data_ops.addScalar(p_cloned_idx, p_cloned_idx, -p_cloned_mean);
             hier_cc_data_ops.subtract(p_cloned_idx, p_idx, p_cloned_idx);
             pout << "Error in p at time " << loop_time - 0.5 * dt << ":\n"
-                 << "  L1-norm:  " 
-                 << std::setprecision(10) << hier_cc_data_ops.L1Norm(p_cloned_idx, wgt_cc_idx) << "\n"
+                 << "  L1-norm:  " << std::setprecision(10) << hier_cc_data_ops.L1Norm(p_cloned_idx, wgt_cc_idx) << "\n"
                  << "  L2-norm:  " << hier_cc_data_ops.L2Norm(p_cloned_idx, wgt_cc_idx) << "\n"
                  << "  max-norm: " << hier_cc_data_ops.maxNorm(p_cloned_idx, wgt_cc_idx) << "\n"
                  << "+++++++++++++++++++++++++++++++++++++++++++++++++++\n";
-                 
-                 p_err[0] = hier_cc_data_ops.L1Norm(p_cloned_idx, wgt_cc_idx);
-                 p_err[1] = hier_cc_data_ops.L2Norm(p_cloned_idx, wgt_cc_idx);
-                 p_err[2] = hier_cc_data_ops.maxNorm(p_cloned_idx, wgt_cc_idx);
+
+            p_err[0] = hier_cc_data_ops.L1Norm(p_cloned_idx, wgt_cc_idx);
+            p_err[1] = hier_cc_data_ops.L2Norm(p_cloned_idx, wgt_cc_idx);
+            p_err[2] = hier_cc_data_ops.maxNorm(p_cloned_idx, wgt_cc_idx);
 
             // Compute the volume of the structure.
             double J_integral = 0.0;
@@ -513,8 +553,8 @@ bool run_example(int argc, char** argv, std::vector<double>& u_err, std::vector<
             X_vec->localize(*X_ghost_vec);
             DofMap& X_dof_map = X_system.get_dof_map();
             std::vector<std::vector<unsigned int> > X_dof_indices(NDIM);
-            AutoPtr<FEBase> fe(FEBase::build(NDIM, X_dof_map.variable_type(0)));
-            AutoPtr<QBase> qrule = QBase::build(QGAUSS, NDIM, FIFTH);
+            libMesh::UniquePtr<FEBase> fe(FEBase::build(NDIM, X_dof_map.variable_type(0)));
+            libMesh::UniquePtr<QBase> qrule = QBase::build(QGAUSS, NDIM, FIFTH);
             fe->attach_quadrature_rule(qrule.get());
             const std::vector<double>& JxW = fe->get_JxW();
             const std::vector<std::vector<VectorValue<double> > >& dphi = fe->get_dphi();
@@ -561,7 +601,7 @@ bool run_example(int argc, char** argv, std::vector<double>& u_err, std::vector<
 
     SAMRAIManager::shutdown();
     return true;
-} 
+}
 
 void
 output_data(Pointer<PatchHierarchy<NDIM> > patch_hierarchy,

@@ -1,7 +1,7 @@
 // Filename: SCPoissonPointRelaxationFACOperator.cpp
 // Created on 13 Nov 2008 by Boyce Griffith
 //
-// Copyright (c) 2002-2014, Boyce Griffith
+// Copyright (c) 2002-2017, Boyce Griffith
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -300,6 +300,8 @@ SCPoissonPointRelaxationFACOperator::SCPoissonPointRelaxationFACOperator(const s
             d_coarse_solver_abs_residual_tol = input_db->getDouble("coarse_solver_abs_residual_tol");
         if (input_db->keyExists("coarse_solver_max_iterations"))
             d_coarse_solver_max_iterations = input_db->getInteger("coarse_solver_max_iterations");
+        if (input_db->keyExists("coarse_solver_prefix"))
+            d_coarse_solver_default_options_prefix = input_db->getString("coarse_solver_prefix");
         if (input_db->isDatabase("coarse_solver_db"))
         {
             d_coarse_solver_db = input_db->getDatabase("coarse_solver_db");

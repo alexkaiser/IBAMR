@@ -1,7 +1,7 @@
 // Filename: StaggeredStokesPhysicalBoundaryHelper.cpp
 // Created on 28 Aug 2012 by Boyce Griffith
 //
-// Copyright (c) 2002-2014, Boyce Griffith
+// Copyright (c) 2002-2017, Boyce Griffith
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -68,6 +68,10 @@ namespace IBAMR
 {
 /////////////////////////////// STATIC ///////////////////////////////////////
 
+const short int StaggeredStokesPhysicalBoundaryHelper::NORMAL_TRACTION_BDRY = 0x100;
+const short int StaggeredStokesPhysicalBoundaryHelper::NORMAL_VELOCITY_BDRY = 0x200;
+const short int StaggeredStokesPhysicalBoundaryHelper::ALL_BDRY = 0x100 | 0x200;
+
 /////////////////////////////// PUBLIC ///////////////////////////////////////
 
 StaggeredStokesPhysicalBoundaryHelper::StaggeredStokesPhysicalBoundaryHelper()
@@ -98,9 +102,6 @@ StaggeredStokesPhysicalBoundaryHelper::enforceNormalVelocityBoundaryConditions(
 #endif
     StaggeredStokesPhysicalBoundaryHelper::setupBcCoefObjects(
         u_bc_coefs, /*p_bc_coef*/ NULL, u_data_idx, p_data_idx, homogeneous_bc);
-    std::vector<int> target_data_idxs(2);
-    target_data_idxs[0] = u_data_idx;
-    target_data_idxs[1] = p_data_idx;
     const int finest_hier_level = d_hierarchy->getFinestLevelNumber();
     for (int ln = (coarsest_ln == -1 ? 0 : coarsest_ln); ln <= (finest_ln == -1 ? finest_hier_level : finest_ln); ++ln)
     {
@@ -159,10 +160,10 @@ StaggeredStokesPhysicalBoundaryHelper::enforceNormalVelocityBoundaryConditions(
 } // enforceNormalVelocityBoundaryConditions
 
 void
-StaggeredStokesPhysicalBoundaryHelper::enforceDivergenceFreeConditionAtBoundary(
-    const int u_data_idx,
-    const int coarsest_ln,
-    const int finest_ln) const
+StaggeredStokesPhysicalBoundaryHelper::enforceDivergenceFreeConditionAtBoundary(const int u_data_idx,
+                                                                                const int coarsest_ln,
+                                                                                const int finest_ln,
+                                                                                const short int bdry_tag) const
 {
 #if !defined(NDEBUG)
     TBOX_ASSERT(d_hierarchy);
@@ -177,17 +178,17 @@ StaggeredStokesPhysicalBoundaryHelper::enforceDivergenceFreeConditionAtBoundary(
             if (patch->getPatchGeometry()->getTouchesRegularBoundary())
             {
                 Pointer<SideData<NDIM, double> > u_data = patch->getPatchData(u_data_idx);
-                enforceDivergenceFreeConditionAtBoundary(u_data, patch);
+                enforceDivergenceFreeConditionAtBoundary(u_data, patch, bdry_tag);
             }
         }
     }
     return;
-}// enforceDivergenceFreeConditionAtBoundary
+} // enforceDivergenceFreeConditionAtBoundary
 
 void
-StaggeredStokesPhysicalBoundaryHelper::enforceDivergenceFreeConditionAtBoundary(
-    Pointer<SideData<NDIM,double> > u_data,
-    Pointer<Patch<NDIM> > patch) const
+StaggeredStokesPhysicalBoundaryHelper::enforceDivergenceFreeConditionAtBoundary(Pointer<SideData<NDIM, double> > u_data,
+                                                                                Pointer<Patch<NDIM> > patch,
+                                                                                const short int bdry_tag) const
 {
     if (!patch->getPatchGeometry()->getTouchesRegularBoundary()) return;
     const int ln = patch->getPatchLevelNumber();
@@ -209,7 +210,8 @@ StaggeredStokesPhysicalBoundaryHelper::enforceDivergenceFreeConditionAtBoundary(
         for (Box<NDIM>::Iterator it(bc_coef_box); it; it++)
         {
             const Index<NDIM>& i = it();
-            if (!bdry_locs_data(i,0))
+            if ((bdry_locs_data(i, 0) == 0.0 && (bdry_tag & NORMAL_TRACTION_BDRY)) ||
+                (bdry_locs_data(i, 0) == 1.0 && (bdry_tag & NORMAL_VELOCITY_BDRY)))
             {
                 // Place i_g in the ghost cell abutting the boundary.
                 Index<NDIM> i_g = i;
@@ -246,7 +248,7 @@ StaggeredStokesPhysicalBoundaryHelper::enforceDivergenceFreeConditionAtBoundary(
         }
     }
     return;
-}// enforceDivergenceFreeConditionAtBoundary
+} // enforceDivergenceFreeConditionAtBoundary
 
 void
 StaggeredStokesPhysicalBoundaryHelper::setupBcCoefObjects(const std::vector<RobinBcCoefStrategy<NDIM>*>& u_bc_coefs,

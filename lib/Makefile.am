@@ -61,6 +61,7 @@ DIM_INDEPENDENT_SOURCES = \
 ../src/IB/IBEulerianSourceFunction.cpp \
 ../src/IB/IBExplicitHierarchyIntegrator.cpp \
 ../src/IB/IBHierarchyIntegrator.cpp \
+../src/IB/IBHydrodynamicForceEvaluator.cpp \
 ../src/IB/IBImplicitStaggeredHierarchyIntegrator.cpp \
 ../src/IB/IBImplicitStrategy.cpp \
 ../src/IB/IBInstrumentPanel.cpp \
@@ -72,8 +73,10 @@ DIM_INDEPENDENT_SOURCES = \
 ../src/IB/IBLagrangianSourceStrategy.cpp \
 ../src/IB/IBMethod.cpp \
 ../src/IB/IBMethodPostProcessStrategy.cpp \
+../src/IB/IBRedundantInitializer.cpp \
 ../src/IB/IBRodForceSpec.cpp \
 ../src/IB/IBRodForceSpecFactory.cpp \
+../src/IB/IBHydrodynamicSurfaceForceEvaluator.cpp \
 ../src/IB/IBSourceSpec.cpp \
 ../src/IB/IBSourceSpecFactory.cpp \
 ../src/IB/IBSpringForceSpec.cpp \
@@ -94,6 +97,7 @@ DIM_INDEPENDENT_SOURCES = \
 ../src/IB/Wall.cpp \
 ../src/IB/WallForceEvaluator.cpp \
 ../src/adv_diff/AdvDiffCenteredConvectiveOperator.cpp \
+../src/adv_diff/AdvDiffCUIConvectiveOperator.cpp \
 ../src/adv_diff/AdvDiffConvectiveOperatorManager.cpp \
 ../src/adv_diff/AdvDiffPredictorCorrectorHierarchyIntegrator.cpp \
 ../src/adv_diff/AdvDiffPredictorCorrectorHyperbolicPatchOps.cpp \
@@ -102,25 +106,39 @@ DIM_INDEPENDENT_SOURCES = \
 ../src/adv_diff/AdvDiffPhysicalBoundaryUtilities.cpp \
 ../src/adv_diff/AdvDiffSemiImplicitHierarchyIntegrator.cpp \
 ../src/adv_diff/AdvDiffStochasticForcing.cpp \
+../src/adv_diff/AdvDiffWavePropConvectiveOperator.cpp \
 ../src/advect/AdvectorExplicitPredictorPatchOps.cpp \
 ../src/advect/AdvectorPredictorCorrectorHyperbolicPatchOps.cpp \
+../src/level_set/FastSweepingLSMethod.cpp \
+../src/level_set/LSInitStrategy.cpp \
+../src/level_set/RelaxationLSBcCoefs.cpp \
+../src/level_set/RelaxationLSMethod.cpp \
 ../src/navier_stokes/INSCollocatedCenteredConvectiveOperator.cpp \
 ../src/navier_stokes/INSCollocatedConvectiveOperatorManager.cpp \
 ../src/navier_stokes/INSCollocatedHierarchyIntegrator.cpp \
 ../src/navier_stokes/INSCollocatedPPMConvectiveOperator.cpp \
+../src/navier_stokes/INSCollocatedWavePropConvectiveOperator.cpp \
 ../src/navier_stokes/INSCollocatedVelocityBcCoef.cpp \
 ../src/navier_stokes/INSHierarchyIntegrator.cpp \
 ../src/navier_stokes/INSIntermediateVelocityBcCoef.cpp \
 ../src/navier_stokes/INSProjectionBcCoef.cpp \
 ../src/navier_stokes/INSStaggeredCenteredConvectiveOperator.cpp \
 ../src/navier_stokes/INSStaggeredConvectiveOperatorManager.cpp \
+../src/navier_stokes/INSStaggeredCUIConvectiveOperator.cpp \
 ../src/navier_stokes/INSStaggeredHierarchyIntegrator.cpp \
 ../src/navier_stokes/INSStaggeredPPMConvectiveOperator.cpp \
 ../src/navier_stokes/INSStaggeredPressureBcCoef.cpp \
 ../src/navier_stokes/INSStaggeredStabilizedPPMConvectiveOperator.cpp \
 ../src/navier_stokes/INSStaggeredStochasticForcing.cpp \
 ../src/navier_stokes/INSStaggeredUpwindConvectiveOperator.cpp \
+../src/navier_stokes/INSStaggeredWavePropConvectiveOperator.cpp \
 ../src/navier_stokes/INSStaggeredVelocityBcCoef.cpp \
+../src/navier_stokes/INSVCStaggeredConservativeHierarchyIntegrator.cpp \
+../src/navier_stokes/INSVCStaggeredConservativeMassMomentumIntegrator.cpp \
+../src/navier_stokes/INSVCStaggeredHierarchyIntegrator.cpp \
+../src/navier_stokes/INSVCStaggeredNonConservativeHierarchyIntegrator.cpp \
+../src/navier_stokes/INSVCStaggeredPressureBcCoef.cpp \
+../src/navier_stokes/INSVCStaggeredVelocityBcCoef.cpp \
 ../src/navier_stokes/KrylovLinearSolverStaggeredStokesSolverInterface.cpp \
 ../src/navier_stokes/PETScKrylovStaggeredStokesSolver.cpp \
 ../src/navier_stokes/SpongeLayerForceFunction.cpp \
@@ -139,22 +157,29 @@ DIM_INDEPENDENT_SOURCES = \
 ../src/navier_stokes/StaggeredStokesSolver.cpp \
 ../src/navier_stokes/StaggeredStokesSolverManager.cpp \
 ../src/navier_stokes/StokesBcCoefStrategy.cpp \
+../src/navier_stokes/SurfaceTensionForceFunction.cpp \
+../src/navier_stokes/VCStaggeredStokesOperator.cpp \
+../src/navier_stokes/VCStaggeredStokesProjectionPreconditioner.cpp \
 ../src/utilities/ConvectiveOperator.cpp
 
 if LIBMESH_ENABLED
   DIM_INDEPENDENT_SOURCES += \
   ../src/IB/CIBFEMethod.cpp \
   ../src/IB/IBFECentroidPostProcessor.cpp \
+  ../src/IB/IBFEDirectForcingKinematics.cpp \
+  ../src/IB/IBFEInstrumentPanel.cpp \
   ../src/IB/IBFEMethod.cpp \
   ../src/IB/IBFEPostProcessor.cpp \
-  ../src/IB/IMPMethod.cpp \
+  ../src/IB/IBFESurfaceMethod.cpp \
   ../src/IB/IMPInitializer.cpp \
+  ../src/IB/IMPMethod.cpp \
   ../src/IB/MaterialPointSpec.cpp \
   ../src/IB/MaterialPointSpecFactory.cpp
 endif
 
 pkg_include_HEADERS += \
 ../include/ibamr/AdvDiffCenteredConvectiveOperator.h \
+../src/adv_diff/AdvDiffCUIConvectiveOperator.cpp \
 ../include/ibamr/AdvDiffConvectiveOperatorManager.h \
 ../include/ibamr/AdvDiffHierarchyIntegrator.h \
 ../include/ibamr/AdvDiffPPMConvectiveOperator.h \
@@ -176,10 +201,12 @@ pkg_include_HEADERS += \
 ../include/ibamr/ConvectiveOperator.h \
 ../include/ibamr/GeneralizedIBMethod.h \
 ../include/ibamr/DirectMobilitySolver.h \
+../include/ibamr/FastSweepingLSMethod.h \
 ../include/ibamr/IBAnchorPointSpec.h \
 ../include/ibamr/IBBeamForceSpec.h \
 ../include/ibamr/IBExplicitHierarchyIntegrator.h \
 ../include/ibamr/IBHierarchyIntegrator.h \
+../include/ibamr/IBHydrodynamicForceEvaluator.h \
 ../include/ibamr/IBImplicitStaggeredHierarchyIntegrator.h \
 ../include/ibamr/IBImplicitStrategy.h \
 ../include/ibamr/IBInstrumentPanel.h \
@@ -190,7 +217,9 @@ pkg_include_HEADERS += \
 ../include/ibamr/IBLagrangianSourceStrategy.h \
 ../include/ibamr/IBMethod.h \
 ../include/ibamr/IBMethodPostProcessStrategy.h \
+../include/ibamr/IBRedundantInitializer.h \
 ../include/ibamr/IBRodForceSpec.h \
+../include/ibamr/IBHydrodynamicSurfaceForceEvaluator.h \
 ../include/ibamr/IBSourceSpec.h \
 ../include/ibamr/IBSpringForceFunctions.h \
 ../include/ibamr/IBSpringForceSpec.h \
@@ -210,6 +239,7 @@ pkg_include_HEADERS += \
 ../include/ibamr/INSProjectionBcCoef.h \
 ../include/ibamr/INSStaggeredCenteredConvectiveOperator.h \
 ../include/ibamr/INSStaggeredConvectiveOperatorManager.h \
+../include/ibamr/INSStaggeredCUIConvectiveOperator.h \
 ../include/ibamr/INSStaggeredHierarchyIntegrator.h \
 ../include/ibamr/INSStaggeredPPMConvectiveOperator.h \
 ../include/ibamr/INSStaggeredPressureBcCoef.h \
@@ -217,13 +247,22 @@ pkg_include_HEADERS += \
 ../include/ibamr/INSStaggeredStochasticForcing.h \
 ../include/ibamr/INSStaggeredUpwindConvectiveOperator.h \
 ../include/ibamr/INSStaggeredVelocityBcCoef.h \
+../include/ibamr/INSVCStaggeredConservativeHierarchyIntegrator.h \
+../include/ibamr/INSVCStaggeredConservativeMassMomentumIntegrator.h \
+../include/ibamr/INSVCStaggeredHierarchyIntegrator.h \
+../include/ibamr/INSVCStaggeredNonConservativeHierarchyIntegrator.h \
+../include/ibamr/INSVCStaggeredPressureBcCoef.h \
+../include/ibamr/INSVCStaggeredVelocityBcCoef.h \
 ../include/ibamr/KrylovFreeBodyMobilitySolver.h \
 ../include/ibamr/KrylovLinearSolverStaggeredStokesSolverInterface.h \
 ../include/ibamr/KrylovMobilitySolver.h \
+../include/ibamr/LSInitStrategy.h \
 ../include/ibamr/MobilityFunctions.h \
 ../include/ibamr/NonbondedForceEvaluator.h \
 ../include/ibamr/PETScKrylovStaggeredStokesSolver.h \
 ../include/ibamr/PenaltyIBMethod.h \
+../include/ibamr/RelaxationLSBcCoefs.h \
+../include/ibamr/RelaxationLSMethod.h \
 ../include/ibamr/SpongeLayerForceFunction.h \
 ../include/ibamr/StaggeredStokesBlockFactorizationPreconditioner.h \
 ../include/ibamr/StaggeredStokesBlockPreconditioner.h \
@@ -242,6 +281,9 @@ pkg_include_HEADERS += \
 ../include/ibamr/StaggeredStokesSolverManager.h \
 ../include/ibamr/StokesBcCoefStrategy.h \
 ../include/ibamr/StokesSpecifications.h \
+../include/ibamr/SurfaceTensionForceFunction.h \
+../include/ibamr/VCStaggeredStokesOperator.h \
+../include/ibamr/VCStaggeredStokesProjectionPreconditioner.h \
 ../include/ibamr/Wall.h \
 ../include/ibamr/WallForceEvaluator.h
 
@@ -249,42 +291,51 @@ if LIBMESH_ENABLED
   pkg_include_HEADERS += \
   ../include/ibamr/CIBFEMethod.h \
   ../include/ibamr/IBFECentroidPostProcessor.h \
+  ../include/ibamr/IBFEDirectForcingKinematics.h \
+  ../include/ibamr/IBFEInstrumentPanel.h \
   ../include/ibamr/IBFEMethod.h \
-  ../include/ibamr/IBFEPatchRecoveryPostProcessor.h \
   ../include/ibamr/IBFEPostProcessor.h \
+  ../include/ibamr/IBFESurfaceMethod.h \
   ../include/ibamr/IMPInitializer.h \
   ../include/ibamr/IMPMethod.h \
-  ../include/ibamr/MaterialPointSpec.h
+  ../include/ibamr/MaterialPointSpec.h \
+  ../include/ibamr/private/MaterialPointSpec-inl.h
 endif
 
 libIBAMR2d_a_CXXFLAGS = $(AM_CXXFLAGS) -DNDIM=2
 libIBAMR2d_a_CFLAGS = $(AM_CFLAGS) -DNDIM=2
 libIBAMR2d_a_SOURCES = $(DIM_INDEPENDENT_SOURCES) \
 $(top_builddir)/src/adv_diff/fortran/adv_diff_consdiff2d.f \
+$(top_builddir)/src/adv_diff/fortran/adv_diff_wp_convective_op2d.f \
 $(top_builddir)/src/advect/fortran/advect_centered_derivatives2d.f \
 $(top_builddir)/src/advect/fortran/advect_detect2d.f \
 $(top_builddir)/src/advect/fortran/advect_diff2d.f \
 $(top_builddir)/src/advect/fortran/advect_stable2d.f \
 $(top_builddir)/src/advect/fortran/advect_predictors2d.f \
+$(top_builddir)/src/level_set/fortran/levelsetops2d.f \
 $(top_builddir)/src/navier_stokes/fortran/navier_stokes_bdryop2d.f \
 $(top_builddir)/src/navier_stokes/fortran/navier_stokes_divsource2d.f \
 $(top_builddir)/src/navier_stokes/fortran/navier_stokes_stabledt2d.f \
 $(top_builddir)/src/navier_stokes/fortran/navier_stokes_staggered_derivatives2d.f \
 $(top_builddir)/src/navier_stokes/fortran/navier_stokes_staggered_helpers2d.f \
-$(top_builddir)/src/navier_stokes/fortran/navier_stokes_stochastic_forcing2d.f
+$(top_builddir)/src/navier_stokes/fortran/navier_stokes_stochastic_forcing2d.f \
+$(top_builddir)/src/navier_stokes/fortran/navier_stokes_surface_tension_forcing2d.f
 
 libIBAMR3d_a_CXXFLAGS = $(AM_CXXFLAGS) -DNDIM=3
 libIBAMR3d_a_CFLAGS = $(AM_CFLAGS) -DNDIM=3
 libIBAMR3d_a_SOURCES = $(DIM_INDEPENDENT_SOURCES) \
 $(top_builddir)/src/adv_diff/fortran/adv_diff_consdiff3d.f \
+$(top_builddir)/src/adv_diff/fortran/adv_diff_wp_convective_op3d.f \
 $(top_builddir)/src/advect/fortran/advect_centered_derivatives3d.f \
 $(top_builddir)/src/advect/fortran/advect_detect3d.f \
 $(top_builddir)/src/advect/fortran/advect_diff3d.f \
 $(top_builddir)/src/advect/fortran/advect_stable3d.f \
 $(top_builddir)/src/advect/fortran/advect_predictors3d.f \
+$(top_builddir)/src/level_set/fortran/levelsetops3d.f \
 $(top_builddir)/src/navier_stokes/fortran/navier_stokes_bdryop3d.f \
 $(top_builddir)/src/navier_stokes/fortran/navier_stokes_divsource3d.f \
 $(top_builddir)/src/navier_stokes/fortran/navier_stokes_stabledt3d.f \
 $(top_builddir)/src/navier_stokes/fortran/navier_stokes_staggered_derivatives3d.f \
 $(top_builddir)/src/navier_stokes/fortran/navier_stokes_staggered_helpers3d.f \
-$(top_builddir)/src/navier_stokes/fortran/navier_stokes_stochastic_forcing3d.f
+$(top_builddir)/src/navier_stokes/fortran/navier_stokes_stochastic_forcing3d.f \
+$(top_builddir)/src/navier_stokes/fortran/navier_stokes_surface_tension_forcing3d.f

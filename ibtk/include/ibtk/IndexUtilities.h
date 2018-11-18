@@ -1,7 +1,7 @@
 // Filename: IndexUtilities.h
 // Created on 06 Mar 2004 by Boyce Griffith
 //
-// Copyright (c) 2002-2014, Boyce Griffith
+// Copyright (c) 2002-2017, Boyce Griffith
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -49,9 +49,10 @@
 
 namespace IBTK
 {
-struct CellIndexFortranOrder : std::binary_function<SAMRAI::pdat::CellIndex<NDIM>, SAMRAI::pdat::CellIndex<NDIM>, bool>
+template <typename T>
+struct IndexOrder : std::binary_function<T, T, bool>
 {
-    inline bool operator()(const SAMRAI::pdat::CellIndex<NDIM>& lhs, const SAMRAI::pdat::CellIndex<NDIM>& rhs) const
+    inline bool operator()(const T& lhs, const T& rhs) const
     {
         return (lhs(0) < rhs(0)
 #if (NDIM > 1)
@@ -65,6 +66,9 @@ struct CellIndexFortranOrder : std::binary_function<SAMRAI::pdat::CellIndex<NDIM
                     );
     }
 };
+
+typedef struct IndexOrder<SAMRAI::hier::Index<NDIM> > IndexFortranOrder;
+typedef struct IndexOrder<SAMRAI::pdat::CellIndex<NDIM> > CellIndexFortranOrder;
 
 /*!
  * \brief Class IndexUtilities is a utility class that defines simple functions
@@ -193,7 +197,6 @@ public:
                                                            const SAMRAI::hier::Box<NDIM>& patch_box,
                                                            const SAMRAI::hier::IntVector<NDIM>& box_size,
                                                            const SAMRAI::hier::IntVector<NDIM>& overlap_size);
-
 private:
     /*!
      * \brief Default constructor.

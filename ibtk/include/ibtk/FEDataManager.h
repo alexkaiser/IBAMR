@@ -1,7 +1,7 @@
 // Filename: FEDataManager.h
 // Created on 19 Apr 2010 by Boyce Griffith
 //
-// Copyright (c) 2002-2014, Boyce Griffith
+// Copyright (c) 2002-2017, Boyce Griffith
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -49,13 +49,17 @@
 #include "LoadBalancer.h"
 #include "PatchHierarchy.h"
 #include "RefineSchedule.h"
+#include "SideVariable.h"
 #include "StandardTagAndInitStrategy.h"
 #include "VariableContext.h"
 #include "boost/multi_array.hpp"
+#include "boost/unordered_map.hpp"
 #include "ibtk/ibtk_utilities.h"
-#include "libmesh/auto_ptr.h"
+#include "libmesh/dof_map.h"
+#include "libmesh/elem.h"
 #include "libmesh/enum_order.h"
 #include "libmesh/enum_quadrature_type.h"
+#include "libmesh/system.h"
 #include "tbox/Pointer.h"
 #include "tbox/Serializable.h"
 
@@ -102,6 +106,39 @@ namespace IBTK
 class FEDataManager : public SAMRAI::tbox::Serializable, public SAMRAI::mesh::StandardTagAndInitStrategy<NDIM>
 {
 public:
+    class SystemDofMapCache
+    {
+    public:
+        inline SystemDofMapCache(libMesh::System& system) : d_dof_map(system.get_dof_map())
+        {
+        }
+
+        inline ~SystemDofMapCache()
+        {
+        }
+
+        inline void
+        dof_indices(const libMesh::Elem* const elem, std::vector<unsigned int>& dof_indices, const unsigned int var = 0)
+        {
+            const libMesh::dof_id_type elem_id = elem->id();
+            std::vector<std::vector<unsigned int> >& elem_dof_indices = d_dof_cache[elem_id];
+            if (elem_dof_indices.size() <= var)
+            {
+                elem_dof_indices.resize(var + 1);
+            }
+            if (elem_dof_indices[var].empty())
+            {
+                d_dof_map.dof_indices(elem, elem_dof_indices[var], var);
+            }
+            dof_indices = elem_dof_indices[var];
+            return;
+        }
+
+    private:
+        libMesh::DofMap& d_dof_map;
+        boost::unordered_map<libMesh::dof_id_type, std::vector<std::vector<unsigned int> > > d_dof_cache;
+    };
+
     /*!
      * \brief Struct InterpSpec encapsulates data needed to specify the manner
      * in which Eulerian-to-Lagrangian interpolation is performed when using an
@@ -118,13 +155,15 @@ public:
                    const libMesh::Order& quad_order,
                    bool use_adaptive_quadrature,
                    double point_density,
-                   bool use_consistent_mass_matrix)
+                   bool use_consistent_mass_matrix,
+                   bool use_nodal_quadrature)
             : kernel_fcn(kernel_fcn),
               quad_type(quad_type),
               quad_order(quad_order),
               use_adaptive_quadrature(use_adaptive_quadrature),
               point_density(point_density),
-              use_consistent_mass_matrix(use_consistent_mass_matrix)
+              use_consistent_mass_matrix(use_consistent_mass_matrix),
+              use_nodal_quadrature(use_nodal_quadrature)
         {
         }
 
@@ -134,6 +173,7 @@ public:
         bool use_adaptive_quadrature;
         double point_density;
         bool use_consistent_mass_matrix;
+        bool use_nodal_quadrature;
     };
 
     /*!
@@ -151,12 +191,14 @@ public:
                    const libMesh::QuadratureType& quad_type,
                    const libMesh::Order& quad_order,
                    bool use_adaptive_quadrature,
-                   double point_density)
+                   double point_density,
+                   bool use_nodal_quadrature)
             : kernel_fcn(kernel_fcn),
               quad_type(quad_type),
               quad_order(quad_order),
               use_adaptive_quadrature(use_adaptive_quadrature),
-              point_density(point_density)
+              point_density(point_density),
+              use_nodal_quadrature(use_nodal_quadrature)
         {
         }
 
@@ -165,6 +207,7 @@ public:
         libMesh::Order quad_order;
         bool use_adaptive_quadrature;
         double point_density;
+        bool use_nodal_quadrature;
     };
 
     /*!
@@ -268,6 +311,16 @@ public:
     libMesh::EquationSystems* getEquationSystems() const;
 
     /*!
+     * \return The DofMapCache for a specified system.
+     */
+    SystemDofMapCache* getDofMapCache(const std::string& system_name);
+
+    /*!
+     * \return The DofMapCache for a specified system.
+     */
+    SystemDofMapCache* getDofMapCache(unsigned int system_num);
+
+    /*!
      * \return The level number to which the equations system object managed by
      * the FEDataManager is assigned.
      */
@@ -296,6 +349,12 @@ public:
      * active elements.
      */
     const std::vector<std::vector<libMesh::Elem*> >& getActivePatchElementMap() const;
+
+    /*!
+     * \return A const reference to the map from local patch number to local
+     * active nodes.
+     */
+    const std::vector<std::vector<libMesh::Node*> >& getActivePatchNodeMap() const;
 
     /*!
      * \brief Reinitialize the mappings from elements to Cartesian grid patches.
@@ -334,7 +393,9 @@ public:
                 libMesh::NumericVector<double>& X,
                 const std::string& system_name,
                 RobinPhysBdryPatchStrategy* f_phys_bdry_op,
-                double fill_data_time);
+                double fill_data_time,
+                bool close_F = true,
+                bool close_X = true);
 
     /*!
      * \brief Spread a density from the FE mesh to the Cartesian grid using a
@@ -346,7 +407,9 @@ public:
                 const std::string& system_name,
                 const SpreadSpec& spread_spec,
                 RobinPhysBdryPatchStrategy* f_phys_bdry_op,
-                double fill_data_time);
+                double fill_data_time,
+                bool close_F = true,
+                bool close_X = true);
 
     /*!
      * \brief Prolong a value or a density from the FE mesh to the Cartesian
@@ -357,7 +420,9 @@ public:
                      libMesh::NumericVector<double>& X,
                      const std::string& system_name,
                      bool is_density = true,
-                     bool accumulate_on_grid = true);
+                     bool accumulate_on_grid = true,
+                     bool close_F = true,
+                     bool close_X = true);
 
     /*!
      * \brief Interpolate a value from the Cartesian grid to the FE mesh using
@@ -373,7 +438,9 @@ public:
                    const std::string& system_name,
                    const std::vector<SAMRAI::tbox::Pointer<SAMRAI::xfer::RefineSchedule<NDIM> > >& f_refine_scheds =
                        std::vector<SAMRAI::tbox::Pointer<SAMRAI::xfer::RefineSchedule<NDIM> > >(),
-                   double fill_data_time = 0.0);
+                   double fill_data_time = 0.0,
+                   bool close_F = true,
+                   bool close_X = true);
 
     /*!
      * \brief Interpolate a value from the Cartesian grid to the FE mesh using a
@@ -390,7 +457,9 @@ public:
                    const InterpSpec& interp_spec,
                    const std::vector<SAMRAI::tbox::Pointer<SAMRAI::xfer::RefineSchedule<NDIM> > >& f_refine_scheds =
                        std::vector<SAMRAI::tbox::Pointer<SAMRAI::xfer::RefineSchedule<NDIM> > >(),
-                   double fill_data_time = 0.0);
+                   double fill_data_time = 0.0,
+                   bool close_F = true,
+                   bool close_X = true);
 
     /*!
      * \brief Interpolate a value from the Cartesian grid to the FE mesh using
@@ -402,7 +471,8 @@ public:
                 const std::string& system_name,
                 const std::vector<SAMRAI::tbox::Pointer<SAMRAI::xfer::RefineSchedule<NDIM> > >& f_refine_scheds =
                     std::vector<SAMRAI::tbox::Pointer<SAMRAI::xfer::RefineSchedule<NDIM> > >(),
-                double fill_data_time = 0.0);
+                double fill_data_time = 0.0,
+                bool close_X = true);
 
     /*!
      * \brief Interpolate a value from the Cartesian grid to the FE mesh using a
@@ -415,7 +485,8 @@ public:
                 const InterpSpec& interp_spec,
                 const std::vector<SAMRAI::tbox::Pointer<SAMRAI::xfer::RefineSchedule<NDIM> > >& f_refine_scheds =
                     std::vector<SAMRAI::tbox::Pointer<SAMRAI::xfer::RefineSchedule<NDIM> > >(),
-                double fill_data_time = 0.0);
+                double fill_data_time = 0.0,
+                bool close_X = true);
 
     /*!
      * \brief Restrict a value from the Cartesian grid to the FE mesh.
@@ -424,16 +495,15 @@ public:
                       libMesh::NumericVector<double>& F,
                       libMesh::NumericVector<double>& X,
                       const std::string& system_name,
-                      bool use_consistent_mass_matrix = true);
+                      bool use_consistent_mass_matrix = true,
+                      bool close_X = true);
 
     /*!
      * \return Pointers to a linear solver and sparse matrix corresponding to a
      * L2 projection operator.
      */
     std::pair<libMesh::LinearSolver<double>*, libMesh::SparseMatrix<double>*>
-    buildL2ProjectionSolver(const std::string& system_name,
-                            libMesh::QuadratureType quad_type = libMesh::QGAUSS,
-                            libMesh::Order quad_order = libMesh::FIFTH);
+    buildL2ProjectionSolver(const std::string& system_name);
 
     /*!
      * \return Pointer to vector representation of diagonal L2 mass matrix.
@@ -447,8 +517,8 @@ public:
                              libMesh::NumericVector<double>& F,
                              const std::string& system_name,
                              bool consistent_mass_matrix = true,
-                             libMesh::QuadratureType quad_type = libMesh::QGAUSS,
-                             libMesh::Order quad_order = libMesh::FIFTH,
+                             bool close_U = true,
+                             bool close_F = true,
                              double tol = 1.0e-6,
                              unsigned int max_its = 100);
 
@@ -460,12 +530,12 @@ public:
      * reinitialization (e.g. because the element type or p_level changed);
      * false otherwise.
      */
-    static bool updateQuadratureRule(libMesh::AutoPtr<libMesh::QBase>& qrule,
+    static bool updateQuadratureRule(libMesh::UniquePtr<libMesh::QBase>& qrule,
                                      libMesh::QuadratureType quad_type,
                                      libMesh::Order quad_order,
                                      bool use_adaptive_quadrature,
                                      double point_density,
-                                     libMesh::Elem* elem,
+                                     const libMesh::Elem* elem,
                                      const boost::multi_array<double, 2>& X_node,
                                      double dx_min);
 
@@ -478,9 +548,9 @@ public:
      * reinitialization (e.g. because the element type or p_level changed);
      * false otherwise.
      */
-    static bool updateInterpQuadratureRule(libMesh::AutoPtr<libMesh::QBase>& qrule,
+    static bool updateInterpQuadratureRule(libMesh::UniquePtr<libMesh::QBase>& qrule,
                                            const InterpSpec& spec,
-                                           libMesh::Elem* elem,
+                                           const libMesh::Elem* elem,
                                            const boost::multi_array<double, 2>& X_node,
                                            double dx_min);
 
@@ -493,9 +563,9 @@ public:
      * reinitialization (e.g. because the element type or p_level changed);
      * false otherwise.
      */
-    static bool updateSpreadQuadratureRule(libMesh::AutoPtr<libMesh::QBase>& qrule,
+    static bool updateSpreadQuadratureRule(libMesh::UniquePtr<libMesh::QBase>& qrule,
                                            const SpreadSpec& spec,
-                                           libMesh::Elem* elem,
+                                           const libMesh::Elem* elem,
                                            const boost::multi_array<double, 2>& X_node,
                                            double dx_min);
 
@@ -659,6 +729,13 @@ private:
                                     const SAMRAI::hier::IntVector<NDIM>& ghost_width);
 
     /*!
+     * Collect all of the nodes of the active elements that are located within a
+     * local Cartesian grid patch grown by the specified ghost cell width.
+     */
+    void collectActivePatchNodes(std::vector<std::vector<libMesh::Node*> >& active_patch_nodes,
+                                 const std::vector<std::vector<libMesh::Elem*> >& active_patch_elems);
+
+    /*!
      * Collect all ghost DOF indices for the specified collection of elements.
      */
     void collectGhostDOFIndices(std::vector<unsigned int>& ghost_dofs,
@@ -721,6 +798,12 @@ private:
     int d_qp_count_idx;
 
     /*
+     * SAMRAI::xfer::RefineAlgorithm pointer to fill the ghost cell region of
+     * SAMRAI variables.
+     */
+    SAMRAI::xfer::RefineAlgorithm<NDIM> d_ghost_fill_alg;
+
+    /*
      * SAMRAI::hier::Variable pointer and patch data descriptor indices for the
      * cell variable used to determine the workload for nonuniform load
      * balancing.
@@ -746,11 +829,13 @@ private:
      */
     libMesh::EquationSystems* d_es;
     int d_level_number;
+    std::map<unsigned int, SAMRAI::tbox::Pointer<SystemDofMapCache> > d_system_dof_map_cache;
 
     /*
      * Data to manage mappings between mesh elements and grid patches.
      */
     std::vector<std::vector<libMesh::Elem*> > d_active_patch_elem_map;
+    std::vector<std::vector<libMesh::Node*> > d_active_patch_node_map;
     std::map<std::string, std::vector<unsigned int> > d_active_patch_ghost_dofs;
     std::vector<std::pair<Point, Point> > d_active_elem_bboxes;
 
@@ -766,8 +851,6 @@ private:
     std::map<std::string, libMesh::LinearSolver<double>*> d_L2_proj_solver;
     std::map<std::string, libMesh::SparseMatrix<double>*> d_L2_proj_matrix;
     std::map<std::string, libMesh::NumericVector<double>*> d_L2_proj_matrix_diag;
-    std::map<std::string, libMesh::QuadratureType> d_L2_proj_quad_type;
-    std::map<std::string, libMesh::Order> d_L2_proj_quad_order;
 };
 } // namespace IBTK
 

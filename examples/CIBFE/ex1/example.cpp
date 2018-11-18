@@ -213,7 +213,16 @@ run_example(int argc, char* argv[])
         const bool dump_viz_data = app_initializer->dumpVizData();
         const int viz_dump_interval = app_initializer->getVizDumpInterval();
         const bool uses_visit = dump_viz_data && app_initializer->getVisItDataWriter();
+#ifdef LIBMESH_HAVE_EXODUS_API
         const bool uses_exodus = dump_viz_data && !app_initializer->getExodusIIFilename().empty();
+#else
+        const bool uses_exodus = false;
+        if (!app_initializer->getExodusIIFilename().empty())
+        {
+            plog << "WARNING: libMesh was compiled without Exodus support, so no "
+                 << "Exodus output will be written in this program.\n";
+        }
+#endif
         const string exodus_filename = app_initializer->getExodusIIFilename();
         const string restart_dump_dirname = app_initializer->getRestartDumpDirectory();
 
@@ -468,7 +477,7 @@ run_example(int argc, char* argv[])
 
         // Set up visualization plot file writers.
         Pointer<VisItDataWriter<NDIM> > visit_writer = app_initializer->getVisItDataWriter();
-        AutoPtr<ExodusII_IO> exodus_io(uses_exodus ? new ExodusII_IO(mesh) : NULL);
+        libMesh::UniquePtr<ExodusII_IO> exodus_io(uses_exodus ? new ExodusII_IO(mesh) : NULL);
         if (dump_viz_data && uses_visit)
         {
             visit_writer->registerPlotQuantity("U", "VECTOR", u_plot_idx, 0);
@@ -626,7 +635,7 @@ run_example(int argc, char* argv[])
         pout << "\n\nWriting mobility matrix file in MATLAB format...\n\n";
         PetscViewer matlab_viewer;
         PetscViewerBinaryOpen(PETSC_COMM_WORLD, "mobility_mat.dat", FILE_MODE_WRITE, &matlab_viewer);
-        PetscViewerSetFormat(matlab_viewer, PETSC_VIEWER_NATIVE);
+        PetscViewerPushFormat(matlab_viewer, PETSC_VIEWER_NATIVE);
         PetscObjectSetName((PetscObject)MM, "MobilityMatrix");
         MatView(MM, matlab_viewer);
         PetscViewerDestroy(&matlab_viewer);
@@ -639,7 +648,7 @@ run_example(int argc, char* argv[])
         // Output mass matrix for MATLAB viewing.
         pout << "\n\nWriting mass matrix file in MATLAB format...\n\n";
         PetscViewerBinaryOpen(PETSC_COMM_WORLD, "mass_mat.dat", FILE_MODE_WRITE, &matlab_viewer);
-        PetscViewerSetFormat(matlab_viewer, PETSC_VIEWER_NATIVE);
+        PetscViewerPushFormat(matlab_viewer, PETSC_VIEWER_NATIVE);
         PetscObjectSetName((PetscObject)mm, "MassMatrix");
         MatView(mm, matlab_viewer);
         PetscViewerDestroy(&matlab_viewer);

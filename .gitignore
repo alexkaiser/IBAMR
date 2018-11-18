@@ -5,10 +5,16 @@ ibtk/contrib/autotools/include
 ibtk/contrib/autotools/lib
 ibtk/contrib/autotools/share
 
+### Generated project files
+#
+# To regenerate: intercept-build --override-compiler make CC=intercept-cc CXX=intercept-c++
+compile_commands.json
+
 # Created by https://www.gitignore.io/api/linux,osx,c,c++,fortran
 
 ### Linux ###
 *~
+nbproject/
 
 # temporary files which can be created if a process still has a handle open of a deleted file
 .fuse_hidden*
@@ -156,3 +162,7 @@ Temporary Items
 *.exe
 *.out
 *.app
+build
+configure.log
+configure.log.bkp
+RDict.log

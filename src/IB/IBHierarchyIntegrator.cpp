@@ -1,7 +1,7 @@
 // Filename: IBHierarchyIntegrator.cpp
 // Created on 12 Jul 2004 by Boyce Griffith
 //
-// Copyright (c) 2002-2014, Boyce Griffith
+// Copyright (c) 2002-2017, Boyce Griffith
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -409,11 +409,15 @@ IBHierarchyIntegrator::initializePatchHierarchy(Pointer<PatchHierarchy<NDIM> > h
     // Initialize Eulerian data.
     HierarchyIntegrator::initializePatchHierarchy(hierarchy, gridding_alg);
 
-    // Begin Lagrangian data movement.
-    d_ib_method_ops->beginDataRedistribution(hierarchy, gridding_alg);
+    const bool from_restart = RestartManager::getManager()->isFromRestart();
+    if (from_restart)
+    {
+        // Begin Lagrangian data movement.
+        d_ib_method_ops->beginDataRedistribution(d_hierarchy, d_gridding_alg);
 
-    // Finish Lagrangian data movement.
-    d_ib_method_ops->endDataRedistribution(hierarchy, gridding_alg);
+        // Finish Lagrangian data movement.
+        d_ib_method_ops->endDataRedistribution(d_hierarchy, d_gridding_alg);
+    }
 
     // Initialize Lagrangian data on the patch hierarchy.
     const int coarsest_ln = 0;
@@ -557,6 +561,21 @@ IBHierarchyIntegrator::atRegridPointSpecialized() const
     }
     return false;
 } // atRegridPointSpecialized
+
+void
+IBHierarchyIntegrator::initializeCompositeHierarchyDataSpecialized(double /*init_data_time*/, bool initial_time)
+{
+    if (initial_time)
+    {
+        // Begin Lagrangian data movement.
+        d_ib_method_ops->beginDataRedistribution(d_hierarchy, d_gridding_alg);
+
+        // Finish Lagrangian data movement.
+        d_ib_method_ops->endDataRedistribution(d_hierarchy, d_gridding_alg);
+    }
+
+    return;
+} // initializeCompositeHierarchyDataSpecialized
 
 void
 IBHierarchyIntegrator::initializeLevelDataSpecialized(const Pointer<BasePatchHierarchy<NDIM> > base_hierarchy,

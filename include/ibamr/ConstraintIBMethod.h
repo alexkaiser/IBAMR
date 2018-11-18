@@ -1,7 +1,7 @@
 // Filename: ConstraintIBMethod.h
 // Created on 1 Dec 2011 by Amneet Bhalla
 //
-// Copyright (c) 2002-2014, Amneet Bhalla and Boyce Griffith
+// Copyright (c) 2002-2017, Amneet Bhalla and Boyce Griffith
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -39,19 +39,19 @@
 #include <string>
 #include <vector>
 
-#include "tbox/Pointer.h"
-#include "VariableContext.h"
+#include "Eigen/Dense"
 #include "LocationIndexRobinBcCoefs.h"
 #include "PoissonSpecifications.h"
-#include "ibamr/IBMethod.h"
-#include "ibamr/IBHierarchyIntegrator.h"
+#include "VariableContext.h"
 #include "ibamr/ConstraintIBKinematics.h"
-#include "ibtk/HierarchyGhostCellInterpolation.h"
+#include "ibamr/IBHierarchyIntegrator.h"
+#include "ibamr/IBMethod.h"
 #include "ibtk/CCLaplaceOperator.h"
-#include "ibtk/PETScKrylovPoissonSolver.h"
 #include "ibtk/CCPoissonPointRelaxationFACOperator.h"
 #include "ibtk/FACPreconditioner.h"
-#include "Eigen/Dense"
+#include "ibtk/HierarchyGhostCellInterpolation.h"
+#include "ibtk/PETScKrylovPoissonSolver.h"
+#include "tbox/Pointer.h"
 
 namespace IBAMR
 {
@@ -179,6 +179,79 @@ public:
         return d_l_data_U_correction;
     }
 
+    /*!
+     * \brief Get the current center of mass for all Lagrangian structures
+     */
+    inline const std::vector<std::vector<double> >& getCurrentStructureCOM()
+    {
+        return d_center_of_mass_current;
+    }
+
+    /*
+     * Set velocity physical boundary options
+     */
+    inline void setVelocityPhysBdryOp(IBTK::RobinPhysBdryPatchStrategy* u_phys_bdry_op)
+    {
+        d_u_phys_bdry_op = u_phys_bdry_op;
+        return;
+    }
+
+    /*
+     * Set the volume element for each Lagrangian node for each individual structure
+     */
+    inline void setVolumeElement(double vol_element, int struct_no)
+    {
+        d_vol_element[struct_no] = vol_element;
+        d_vol_element_is_set[struct_no] = true;
+        return;
+    }
+
+    /*
+     * Set the volume element for each Lagrangian node for all the structures
+     */
+    inline void setVolumeElement(std::vector<double> vol_element)
+    {
+#if !defined(NDEBUG)
+        TBOX_ASSERT(vol_element.size() == ((size_t) d_no_structures)) ;
+#endif
+        d_vol_element = vol_element;
+        d_vol_element_is_set = std::vector<bool>(d_no_structures, true);
+    }
+
+    /*
+     * \brief Get the total volume for all the Lagrangian structures
+     */
+    inline const std::vector<double>& getStructureVolume()
+    {
+        return d_structure_vol;
+    }
+
+    /*!
+     * \brief Get the total linear momentum for all the Lagrangian structures
+     */
+    inline const std::vector<std::vector<double> >& getStructureMomentum()
+    {
+        if (!d_calculate_structure_linear_mom)
+        {
+            TBOX_ERROR("ConstraintIBMethod::getStructureMomentum() called with calculate_structure_linear_mom = FALSE");
+        }
+        return d_structure_mom;
+    }
+
+    /*!
+     * \brief Get the total rotational momentum for all the Lagrangian structures with respect to their COM
+     */
+    inline const std::vector<std::vector<double> >& getStructureRotationalMomentum()
+    {
+        if (!d_calculate_structure_rotational_mom)
+        {
+            TBOX_ERROR(
+                "ConstraintIBMethod::getStructureRotationalMomentum() called with calculate_structure_rotational_mom = "
+                "FALSE");
+        }
+        return d_structure_rotational_mom;
+    }
+
 private:
     /*!
      * \brief Default constructor.
@@ -263,6 +336,11 @@ private:
     void copyFluidVariable(int copy_from_idx, int copy_to);
 
     /*!
+     * \brief Copy density patch data.
+     */
+    void copyDensityVariable(int copy_from_idx, int copy_to);
+
+    /*!
      * \brief Interpolate fluid solve velocity from Eulerian grid onto the Lagrangian mesh.
      */
     void interpolateFluidSolveVelocity();
@@ -335,6 +413,16 @@ private:
     void calculateEulerianMomentum();
 
     /*!
+     * \brief Calculate total translational momentum of all Lagrangian structures
+     */
+    void calculateStructureMomentum();
+
+    /*!
+     * \brief Calculate the total rotational momentum of all Lagrangian structures with respect to their COM
+     */
+    void calculateStructureRotationalMomentum();
+
+    /*!
      * No of immersed structures.
      */
     const int d_no_structures;
@@ -353,6 +441,26 @@ private:
      * Volume element associated with material points.
      */
     std::vector<double> d_vol_element;
+
+    /*
+     * Whether or not the volume has been set for the material structure
+     */
+    std::vector<bool> d_vol_element_is_set;
+
+    /*!
+     * Volume associated with each immersed structure
+     */
+    std::vector<double> d_structure_vol;
+
+    /*!
+     * Linear momentum associated with each immersed structure
+     */
+    std::vector<std::vector<double> > d_structure_mom;
+
+    /*!
+     * Rotational momentum associated with each immersed structure with respect to their COM
+     */
+    std::vector<std::vector<double> > d_structure_rotational_mom;
 
     /*!
      * If divergence free projection is needed after FuRMoRP algorithm?
@@ -405,9 +513,24 @@ private:
     std::vector<std::vector<double> > d_tagged_pt_position;
 
     /*!
-     * Density and viscosity of the fluid.
+     * Density of the structures.
      */
-    double d_rho_fluid, d_mu_fluid;
+    std::vector<double> d_rho_solid;
+
+    /*!
+     * Density of the fluid in constant coefficient case.
+     */
+    double d_rho_fluid;
+
+    /*!
+     * Whether or not the density from the integrator is constant
+     */
+    bool d_rho_is_const;
+
+    /*!
+     * Bools for computing linear and rotational momentums of the body
+     */
+    bool d_calculate_structure_linear_mom, d_calculate_structure_rotational_mom;
 
     /*!
      * Iteration_counter for printing stuff.
@@ -449,7 +572,13 @@ private:
     SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> > d_Div_u_var;
 
     SAMRAI::tbox::Pointer<SAMRAI::hier::VariableContext> d_scratch_context;
-    int d_u_scratch_idx, d_u_fluidSolve_idx, d_u_fluidSolve_cib_idx, d_phi_idx, d_Div_u_scratch_idx;
+    int d_u_fluidSolve_idx, d_u_fluidSolve_cib_idx, d_phi_idx, d_Div_u_scratch_idx;
+
+    /*!
+     * Variables associated with the spatially varying density field, which is maintained by an integrator.
+     */
+    SAMRAI::tbox::Pointer<SAMRAI::pdat::SideVariable<NDIM, double> > d_rho_var;
+    int d_rho_ins_idx, d_rho_scratch_idx;
 
     /*!
      * The following variables are needed to solve cell centered poison equation for \f$ \phi \f$ ,which is
@@ -481,6 +610,9 @@ private:
     std::vector<void (*)(const double, const double, const int, void *)> d_prefluidsolve_callback_fns,
         d_postfluidsolve_callback_fns;
     std::vector<void *> d_prefluidsolve_callback_fns_ctx, d_postfluidsolve_callback_fns_ctx;
+
+    // Velocity boundary operator.
+    IBTK::RobinPhysBdryPatchStrategy* d_u_phys_bdry_op;
 };
 } // namespace IBAMR
 

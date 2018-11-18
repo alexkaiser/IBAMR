@@ -96,8 +96,8 @@ ForcingFunction {
     YCOM = 0.0
     RADIUS = R
     F      = RHO/DT_MAX
-    
-    function_0 = "if( (X0 - XCOM)^2 + (X1-YCOM)^2  < RADIUS^2, 400*exp(-400*t), 0)"
+
+    function_0 = "(X0 - XCOM)^2 + (X1-YCOM)^2  < RADIUS^2 ? 400*exp(-400*t) : 0"
     function_1 = "0.0"
 }
 
@@ -106,8 +106,7 @@ ConstraintIBMethod {
    enable_logging           = ENABLE_LOGGING
    num_INS_cycles           = NUM_CYCLES
    needs_divfree_projection = TRUE
-   rho_fluid                = RHO
-   mu_fluid                 = MU
+   rho_solid                = RHO
    
    PrintOutput {
    print_output          = TRUE                 //default false
@@ -244,7 +243,7 @@ Main {
    log_all_nodes               = FALSE
 
 // visualization dump parameters
-   viz_writer                  = "VisIt"
+   viz_writer                  = "VisIt","Silo"
    viz_dump_interval           = 1000                     // zero to turn off
    viz_dump_dirname            = "viz_Cylinder_IB2d"
    visit_number_procs_per_file = 1
